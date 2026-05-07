@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+dist/
+.npm
+.eslintcache
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+.agents/
+.opencode/

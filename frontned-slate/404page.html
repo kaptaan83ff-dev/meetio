@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - Page Not Found | MeetIO</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* ============================================
+           MEETIO DESIGN SYSTEM - Neo-Brutalist
+           404 ERROR PAGES (UNIFIED LAYOUT)
+           ============================================ */
+        
+        :root {
+            /* === COLOR PALETTE === */
+            --canvas: #fff1e6;
+            --ink: #0a0a0a;
+            --primary: #ffe500;
+            --secondary: #ff4f8b;
+            --accent-lime: #c6ff3d;
+            --accent-blue: #0052ff;
+            --ghost: #ffffff;
+            
+            /* Text Colors */
+            --text-primary: #0a0a0a;
+            --text-muted: rgba(10, 10, 10, 0.6);
+            
+            /* Shadows */
+            --shadow-hard: 4px 4px 0px 0px #0a0a0a;
+            --shadow-hover: 7px 7px 0px 0px #0a0a0a;
+            --shadow-active: 1px 1px 0px 0px #0a0a0a;
+            --shadow-yellow: 4px 4px 0px 0px #ffe500;
+            --shadow-pink: 4px 4px 0px 0px #ff4f8b;
+            
+            /* Typography */
+            --font-display: 'Archivo Black', sans-serif;
+            --font-body: 'Inter', sans-serif;
+            --font-mono: 'Courier New', monospace;
+            
+            /* Spacing */
+            --space-xs: 8px;
+            --space-sm: 16px;
+            --space-md: 24px;
+            --space-lg: 32px;
+            --space-xl: 48px;
+            --space-2xl: 64px;
+            --space-3xl: 80px;
+            
+            /* Borders */
+            --border-thin: 1px solid #0a0a0a;
+            --border-default: 2px solid #0a0a0a;
+            --border-heavy: 3px solid #0a0a0a;
+            
+            /* Transitions */
+            --transition-fast: 100ms ease-out;
+            --transition-base: 200ms ease-out;
+        }
+        
+        /* === RESET & BASE === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: var(--font-body);
+            font-size: 16px;
+            font-weight: 500;
+            line-height: 1.55;
+            color: var(--text-primary);
+            background-color: var(--canvas);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Dot Grid Overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, rgba(10, 10, 10, 0.08) 1.5px, transparent 1.5px);
+            background-size: 20px 20px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        /* ============================================
+           GLITCH ANIMATIONS (Shared for Both Pages)
+           ============================================ */
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-3px, 3px); }
+            40% { transform: translate(-3px, -3px); }
+            60% { transform: translate(3px, 3px); }
+            80% { transform: translate(3px, -3px); }
+            100% { transform: translate(0); }
+        }
+        
+        @keyframes glitch-skew {
+            0% { transform: skew(0deg); }
+            20% { transform: skew(-2deg); }
+            40% { transform: skew(2deg); }
+            60% { transform: skew(-1deg); }
+            80% { transform: skew(1deg); }
+            100% { transform: skew(0deg); }
+        }
+        
+        @keyframes glitch-color {
+            0% { 
+                text-shadow: 
+                    2px 0 var(--secondary), 
+                    -2px 0 var(--accent-blue);
+            }
+            25% { 
+                text-shadow: 
+                    -2px 0 var(--secondary), 
+                    2px 0 var(--accent-blue);
+            }
+            50% { 
+                text-shadow: 
+                    2px 2px var(--secondary), 
+                    -2px -2px var(--accent-blue);
+            }
+            75% { 
+                text-shadow: 
+                    -2px 2px var(--secondary), 
+                    2px -2px var(--accent-blue);
+            }
+            100% { 
+                text-shadow: 
+                    2px 0 var(--secondary), 
+                    -2px 0 var(--accent-blue);
+            }
+        }
+        
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+            75% { opacity: 0.95; }
+        }
+        
+        @keyframes shake-slow {
+            0%, 100% { transform: rotate(0deg); }
+            10% { transform: rotate(-5deg); }
+            20% { transform: rotate(5deg); }
+            30% { transform: rotate(-3deg); }
+            40% { transform: rotate(3deg); }
+            50% { transform: rotate(0deg); }
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        @keyframes pulse-error {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        .glitch-text {
+            position: relative;
+            display: inline-block;
+            animation: glitch 0.3s infinite, glitch-color 0.5s infinite, glitch-skew 0.4s infinite, flicker 2s infinite;
+        }
+        
+        .glitch-text::before,
+        .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .glitch-text::before {
+            color: var(--secondary);
+            animation: glitch 0.3s reverse infinite;
+            clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+            transform: translate(-2px);
+        }
+        
+        .glitch-text::after {
+            color: var(--accent-blue);
+            animation: glitch 0.3s infinite;
+            clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+            transform: translate(2px);
+        }
+        
+        /* Scanline Effects */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9998;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.03),
+                rgba(0, 0, 0, 0.03) 1px,
+                transparent 1px,
+                transparent 2px
+            );
+        }
+        
+        .scanline-moving {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to bottom, transparent, rgba(255, 71, 139, 0.15), transparent);
+            animation: scanline 4s linear infinite;
+            pointer-events: none;
+            z-index: 9997;
+        }
+        
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+        
+        /* ============================================
+           SHARED COMPONENTS (Both Pages Use These)
+           ============================================ */
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 18px 32px;
+            font-family: var(--font-display);
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            border: var(--border-default);
+            cursor: pointer;
+            transition: all var(--transition-base);
+            text-decoration: none;
+            border-radius: 2px;
+            position: relative;
+            white-space: nowrap;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: var(--ink);
+            box-shadow: var(--shadow-hard);
+        }
+        
+        .btn-primary:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 9px 9px 0px 0px #000;
+        }
+        
+        .btn-secondary {
+            background: var(--ghost);
+            color: var(--ink);
+            box-shadow: var(--shadow-hard);
+        }
+        
+        .btn-secondary:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 9px 9px 0px 0px #000;
+        }
+        
+        .btn-dark {
+            background: var(--ink);
+            color: var(--primary);
+            box-shadow: var(--shadow-yellow);
+        }
+        
+        .btn-dark:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 9px 9px 0px 0px var(--primary);
+        }
+        
+        .btn-go-back {
+            background: var(--canvas);
+            color: var(--ink);
+            box-shadow: var(--shadow-hard);
+        }
+        
+        .btn-go-back:hover {
+            background: var(--primary);
+        }
+        
+        /* Hero Button Style (Extra Prominent) */
+        .btn-hero {
+            background: var(--primary);
+            color: var(--ink);
+            box-shadow: var(--shadow-hard);
+            padding: 20px 36px;
+            font-size: 14px;
+        }
+        
+        .btn-hero:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: 11px 11px 0px 0px #000;
+        }
+        
+        .btn-alt {
+            background: var(--ink);
+            color: var(--primary);
+            box-shadow: var(--shadow-yellow);
+            padding: 20px 36px;
+            font-size: 14px;
+        }
+        
+        .btn-alt:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: 11px 11px 0px 0px var(--primary);
+        }
+        
+        /* Spinner */
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 3px solid currentColor;
+            border-top-color: transparent;
+            animation: spin 0.6s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* ============================================
+           UNIFIED 404 LAYOUT (Shared Structure)
+           Two-Column Grid: Illustration | Content
+           ============================================ */
+        .page-404 {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: var(--space-xl);
+            position: relative;
+            z-index: 1;
+        }
+        
+        .page-404.hidden {
+            display: none;
+        }
+        
+        .page-container {
+            max-width: 900px;
+            width: 100%;
+        }
+        
+        /* Main Content Grid - IDENTICAL for Both Pages */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: var(--space-2xl);
+            align-items: center;
+        }
+        
+        /* === LEFT COLUMN: Error Illustration (SAME FOR BOTH) === */
+        .illustration-section {
+            position: relative;
+        }
+        
+        .error-illustration-box {
+            background: var(--ink);
+            border: var(--border-heavy);
+            box-shadow: 12px 12px 0px 0px rgba(10, 10, 10, 0.25);
+            padding: 50px 40px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .illustration-icon {
+            font-size: 100px;
+            color: var(--primary);
+            animation: shake-slow 3s ease-in-out infinite;
+            line-height: 1;
+        }
+        
+        .illustration-badge {
+            position: absolute;
+            background: var(--secondary);
+            border: var(--border-default);
+            padding: 8px 14px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 700;
+            color: white;
+            white-space: nowrap;
+        }
+        
+        .illustration-badge.top-right {
+            top: -12px;
+            right: -16px;
+            transform: rotate(5deg);
+        }
+        
+        .illustration-badge.bottom-left {
+            bottom: -12px;
+            left: -16px;
+            background: var(--accent-lime);
+            color: var(--ink);
+            transform: rotate(-5deg);
+        }
+        
+        /* === RIGHT COLUMN: Content Section (SAME STRUCTURE) === */
+        .content-section {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Glitchy 404 Code */
+        .error-code-large {
+            font-family: var(--font-display);
+            font-size: clamp(72px, 10vw, 120px);
+            line-height: 0.9;
+            letter-spacing: -10px;
+            color: var(--ink);
+            margin-bottom: var(--space-sm);
+        }
+        
+        /* System Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--ink);
+            color: var(--secondary);
+            padding: 10px 20px;
+            border: var(--border-default);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: var(--space-md);
+            box-shadow: var(--shadow-pink);
+            animation: pulse-error 1.5s ease-in-out infinite;
+            align-self: flex-start;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--secondary);
+            border-radius: 50%;
+            animation: blink 0.8s ease-in-out infinite;
+        }
+        
+        /* Error Title */
+        .error-title-main {
+            font-family: var(--font-display);
+            font-size: clamp(26px, 4vw, 42px);
+            line-height: 1.1;
+            letter-spacing: -1.2px;
+            color: var(--ink);
+            margin-bottom: var(--space-sm);
+            text-transform: uppercase;
+        }
+        
+        /* Error Message */
+        .error-message-main {
+            font-size: 16px;
+            color: var(--text-muted);
+            line-height: 1.65;
+            margin-bottom: var(--space-lg);
+        }
+        
+        /* Action Buttons Row (PROMINENT POSITION) */
+        .action-buttons-row {
+            display: flex;
+            gap: var(--space-md);
+            margin-bottom: var(--space-xl);
+            flex-wrap: wrap;
+        }
+        
+        .action-buttons-row .btn {
+            flex: 1;
+            min-width: 180px;
+        }
+        
+        /* Technical Details Panel (Collapsible) */
+        .tech-panel {
+            background: var(--ghost);
+            border: var(--border-heavy);
+            box-shadow: var(--shadow-hard);
+            padding: var(--space-lg);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tech-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--secondary);
+        }
+        
+        .tech-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--space-md);
+            cursor: pointer;
+            padding-bottom: var(--space-sm);
+            border-bottom: var(--border-thin);
+        }
+        
+        .tech-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .tech-header-left i {
+            color: var(--secondary);
+            font-size: 16px;
+        }
+        
+        .tech-header-left span {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--ink);
+        }
+        
+        .tech-toggle-icon {
+            font-size: 12px;
+            color: var(--text-muted);
+            transition: transform var(--transition-fast);
+        }
+        
+        .tech-toggle-icon.open {
+            transform: rotate(180deg);
+        }
+        
+        .tech-body {
+            display: none;
+        }
+        
+        .tech-body.visible {
+            display: block;
+        }
+        
+        .tech-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 13px;
+            border-bottom: 1px dashed rgba(10, 10, 10, 0.1);
+        }
+        
+        .tech-row:last-child {
+            border-bottom: none;
+        }
+        
+        .tech-label {
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        
+        .tech-value {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--ink);
+        }
+        
+        .tech-value.error-path {
+            color: var(--secondary);
+            word-break: break-all;
+            max-width: 250px;
+            text-align: right;
+        }
+        
+        /* Helpful Links Footer */
+        .help-links-footer {
+            display: flex;
+            gap: var(--space-xl);
+            justify-content: center;
+            margin-top: var(--space-xl);
+            padding-top: var(--space-lg);
+            border-top: var(--border-thin);
+        }
+        
+        .help-link-item {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all var(--transition-fast);
+            font-weight: 600;
+        }
+        
+        .help-link-item:hover {
+            color: var(--ink);
+        }
+        
+        .help-link-item i {
+            font-size: 11px;
+        }
+        
+        /* ============================================
+           AUTH-SPECIFIC: Minimal Top Bar Only
+           (No Sidebar - Just User Context)
+           ============================================ */
+        .auth-top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--ghost);
+            border-bottom: var(--border-heavy);
+            padding: 14px var(--space-xl);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 100;
+        }
+        
+        .auth-logo-mini {
+            font-family: var(--font-display);
+            font-size: 18px;
+            letter-spacing: -0.5px;
+            color: var(--ink);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            border: var(--border-default);
+            padding: 8px 16px;
+            background: var(--primary);
+            box-shadow: var(--shadow-yellow);
+            transition: all var(--transition-base);
+        }
+        
+        .auth-logo-mini:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .auth-logo-mini i {
+            font-size: 16px;
+        }
+        
+        .auth-user-area {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+        
+        .auth-user-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--ink);
+            color: var(--primary);
+            padding: 8px 18px;
+            border: var(--border-default);
+            border-color: rgba(255, 229, 0, 0.3);
+        }
+        
+        .auth-user-avatar-small {
+            width: 32px;
+            height: 32px;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 12px;
+            font-weight: 900;
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .auth-user-info-small {
+            line-height: 1.2;
+        }
+        
+        .auth-user-info-small strong {
+            font-size: 12px;
+            font-weight: 700;
+            display: block;
+        }
+        
+        .auth-user-info-small span {
+            font-size: 10px;
+            color: rgba(255, 229, 0, 0.6);
+        }
+        
+        /* Add top spacing when auth bar is present */
+        .page-404.with-topbar {
+            padding-top: calc(var(--space-xl) + 60px);
+        }
+        
+        /* ============================================
+           PAGE SELECTOR (Demo Control)
+           ============================================ */
+        .page-selector {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 9999;
+            background: var(--ghost);
+            border: var(--border-heavy);
+            box-shadow: var(--shadow-hard);
+            padding: 20px;
+            border-radius: 4px;
+            max-width: 280px;
+        }
+        
+        .page-selector h3 {
+            font-family: var(--font-display);
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: var(--ink);
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: var(--border-default);
+        }
+        
+        .selector-btn {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            font-family: var(--font-display);
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            border: var(--border-default);
+            background: var(--ghost);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            text-align: left;
+            border-radius: 2px;
+            color: var(--ink);
+        }
+        
+        .selector-btn:hover {
+            background: var(--canvas);
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-hard);
+        }
+        
+        .selector-btn.active {
+            background: var(--primary);
+            border-color: var(--ink);
+        }
+        
+        .selector-btn i {
+            width: 18px;
+            margin-right: 8px;
+        }
+        
+        .current-indicator {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            padding: 8px 12px;
+            background: var(--canvas);
+            border: var(--border-thin);
+            margin-top: 8px;
+            text-align: center;
+            font-weight: 700;
+        }
+        
+        /* ============================================
+           RESPONSIVE DESIGN
+           ============================================ */
+        @media (max-width: 1024px) {
+            .page-selector {
+                display: none;
+            }
+            
+            .content-grid {
+                grid-template-columns: 1fr;
+                gap: var(--space-xl);
+            }
+            
+            .illustration-section {
+                order: -1;
+                text-align: center;
+            }
+            
+            .error-illustration-box {
+                display: inline-block;
+            }
+            
+            .content-section {
+                text-align: center;
+            }
+            
+            .status-badge {
+                align-self: center;
+            }
+            
+            .action-buttons-row {
+                justify-content: center;
+            }
+            
+            .tech-value.error-path {
+                text-align: left;
+                max-width: 100%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .page-404 {
+                padding: var(--space-lg);
+            }
+            
+            .page-404.with-topbar {
+                padding-top: calc(var(--space-lg) + 70px);
+            }
+            
+            .error-code-large {
+                font-size: 64px;
+                letter-spacing: -6px;
+            }
+            
+            .error-title-main {
+                font-size: 24px;
+            }
+            
+            .illustration-icon {
+                font-size: 70px;
+            }
+            
+            .error-illustration-box {
+                padding: 30px 35px;
+            }
+            
+            .illustration-badge {
+                display: none;
+            }
+            
+            .action-buttons-row {
+                flex-direction: column;
+            }
+            
+            .action-buttons-row .btn {
+                width: 100%;
+            }
+            
+            .help-links-footer {
+                flex-direction: column;
+                align-items: center;
+                gap: var(--space-sm);
+            }
+            
+            .auth-top-bar {
+                padding: 12px var(--space-md);
+            }
+            
+            .auth-user-area {
+                gap: var(--space-sm);
+            }
+            
+            .auth-user-badge {
+                padding: 6px 12px;
+            }
+            
+            .auth-user-info-small strong {
+                font-size: 11px;
+            }
+            
+            .auth-user-info-small span {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .error-code-large {
+                font-size: 52px;
+                letter-spacing: -4px;
+            }
+            
+            .btn {
+                padding: 14px 24px;
+                font-size: 11px;
+            }
+            
+            .btn-hero,
+            .btn-alt {
+                padding: 16px 28px;
+            }
+            
+            .status-badge {
+                font-size: 10px;
+                padding: 8px 14px;
+            }
+            
+            .tech-panel {
+                padding: var(--space-md);
+            }
+        }
+        
+        /* Utility */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Scanline Effects -->
+    <div class="scanlines"></div>
+    <div class="scanline-moving"></div>
+
+    <!-- Demo Page Selector -->
+    <div class="page-selector" id="pageSelector">
+        <h3><i class="fas fa-exchange-alt"></i> Switch View</h3>
+        <button class="selector-btn active" id="btnGuestView" onclick="showPage('guest')">
+            <i class="fas fa-user-slash"></i> Guest 404
+        </button>
+        <button class="selector-btn" id="btnAuthView" onclick="showPage('auth')">
+            <i class="fas fa-user-check"></i> Auth 404
+        </button>
+        <div class="current-indicator" id="currentIndicator">
+            🌐 Viewing: GUEST MODE
+        </div>
+    </div>
+
+    <!-- ==========================================
+         PAGE 1: GUEST 404 (UNAUTHENTICATED)
+         Layout: Illustration Left | Content Right
+         Buttons: Go to Homepage | Start Free Trial
+         ========================================== -->
+    <div class="page-404" id="guestPage">
+        <div class="page-container">
+            
+            <!-- UNIFIED TWO-COLUMN GRID LAYOUT -->
+            <div class="content-grid">
+                
+                <!-- LEFT: Bug Illustration (Same Icon) -->
+                <div class="illustration-section">
+                    <div class="error-illustration-box">
+                        <i class="fas fa-bug illustration-icon"></i>
+                        <span class="illustration-badge top-right">ERR_NOT_FOUND</span>
+                        <span class="illustration-badge bottom-left">0x404</span>
+                    </div>
+                </div>
+                
+                <!-- RIGHT: Content + Actions -->
+                <div class="content-section">
+                    
+                    <!-- Glitchy 404 Code -->
+                    <div class="error-code-large glitch-text" data-text="404">404</div>
+                    
+                    <!-- Status Badge -->
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        <span>System Failure • Path Not Found</span>
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    
+                    <!-- Error Title -->
+                    <h1 class="error-title-main">
+                        Oops! You've Hit<br>a Dead End.
+                    </h1>
+                    
+                    <!-- Error Message -->
+                    <p class="error-message-main">
+                        The page you're looking for doesn't exist, has been moved, or is currently taking a coffee break. Don't worry — this happens to the best of us.
+                    </p>
+                    
+                    <!-- ✨ ACTION BUTTONS (Guest: Homepage + Signup) -->
+                    <div class="action-buttons-row">
+                        <a href="#" class="btn btn-hero" onclick="handleGuestAction('home')">
+                            <i class="fas fa-home"></i>
+                            Go to Homepage
+                        </a>
+                        <a href="#" class="btn btn-alt" onclick="handleGuestAction('signup')">
+                            <i class="fas fa-rocket"></i>
+                            Start Free Trial
+                        </a>
+                    </div>
+                    
+                </div>
+            </div>
+            
+            <!-- Technical Details Panel (Collapsible) -->
+            <div class="tech-panel">
+                <div class="tech-header" onclick="toggleTechPanel()">
+                    <div class="tech-header-left">
+                        <i class="fas fa-terminal"></i>
+                        <span>Error Diagnostics</span>
+                    </div>
+                    <i class="fas fa-chevron-down tech-toggle-icon" id="techToggleIcon"></i>
+                </div>
+                <div class="tech-body" id="techBody">
+                    <div class="tech-row">
+                        <span class="tech-label">Error Code</span>
+                        <span class="tech-value">HTTP 404 Not Found</span>
+                    </div>
+                    <div class="tech-row">
+                        <span class="tech-label">Request Method</span>
+                        <span class="tech-value">GET</span>
+                    </div>
+                    <div class="tech-row">
+                        <span class="tech-label">Timestamp</span>
+                        <span class="tech-value" id="timestampGuest"></span>
+                    </div>
+                    <div class="tech-row">
+                        <span class="tech-label">Requested Path</span>
+                        <span class="tech-value error-path" id="requestedPathGuest">/meetings/sprint-review-q4/nonexistent-page</span>
+                    </div>
+                    <div class="tech-row">
+                        <span class="tech-label">Resource Type</span>
+                        <span class="tech-value">Page / Route</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Helpful Links Footer -->
+            <div class="help-links-footer">
+                <a href="#" class="help-link-item" onclick="handleHelpLink('search')">
+                    <i class="fas fa-search"></i> Search our site
+                </a>
+                <a href="#" class="help-link-item" onclick="handleHelpLink('sitemap')">
+                    <i class="fas fa-sitemap"></i> View sitemap
+                </a>
+                <a href="#" class="help-link-item" onclick="handleHelpLink('contact')">
+                    <i class="fas fa-envelope"></i> Contact support
+                </a>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- ==========================================
+         PAGE 2: AUTHENTICATED 404
+         SAME LAYOUT AS GUEST!
+         Buttons: Go to Dashboard | Go Back
+         + Minimal Top Bar (User Context Only)
+         ========================================== -->
+    <div class="page-404 hidden with-topbar" id="authPage">
+        
+        <!-- Minimal Top Bar (NO SIDEBAR!) -->
+        <header class="auth-top-bar">
+            <a href="#" class="auth-logo-mini">
+                <i class="fas fa-video"></i>
+                MeetIO
+            </a>
+            
+            <div class="auth-user-area">
+                <div class="auth-user-badge">
+                    <div class="auth-user-avatar-small">SK</div>
+                    <div class="auth-user-info-small">
+                        <strong>Sarah Kim</strong>
+                        <span>sarah@company.com</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <div class="page-container">
+            
+            <!-- ✅ IDENTICAL TWO-COLUMN GRID LAYOUT -->
+            <div class="content-grid">
+                
+                <!-- LEFT: SAME Bug Illustration -->
+                <div class="illustration-section">
+                    <div class="error-illustration-box">
+                        <i class="fas fa-bug illustration-icon"></i>
+                        <span class="illustration-badge top-right">ERR_NOT_FOUND</span>
+                        <span class="illustration-badge bottom-left">0x404</span>
+                    </div>
+                </div>
+                
+                <!-- RIGHT: Same Content Structure -->
+                <div class="content-section">
+                    
+                    <!-- Same Glitchy 404 Code -->
+                    <div class="error-code-large glitch-text" data-text="404">404</div>
+                    
+                    <!-- Same Status Badge -->
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        <span>System Failure • Path Not Found</span>
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    
+                    <!-- Same Error Title -->
+                    <h1 class="error-title-main">
+                        Oops! You've Hit<br>a Dead End.
+                    </h1>
+                    
+                    <!-- Adjusted Message for Auth Users -->
+                    <p class="error-message-main">
+                        Looks like you've navigated to a route that doesn't exist in your workspace. Don't worry — your session is still active and all your data is safe.
+                    </p>
+                    
+                    <!-- ✨ ACTION BUTTONS (Auth: Dashboard + Go Back) -->
+                    <div class="action-buttons-row">
+                        <a href="#" class="btn btn-hero" onclick="handleAuthAction('dashboard')">
+                            <i class="fas fa-layout-dashboard"></i>
+                            Go to Dashboard
+                        </a>
+                        <button class="btn btn-alt" onclick="handleGoBack()">
+                            <i class="fas fa-arrow-left"></i>
+                            Go Back
+                        </button>
+                    </div>
+                    
+                </div>
+            </div>
+            
+            <!-- Same Technical Details Panel -->
+            <div class="tech-panel">
+                <div class="tech-header" onclick="toggleTechPanelAuth()">
+                    <div class="tech-header-left">
+                        <i class="fas fa-terminal"></i>
+                        <span>Error Diagnostics</span>
+                    </div>
+                    <i class="fas fa-chevron-down tech-toggle-icon" id="techToggleIconAuth"></i>
+                </div>
+                <div class="tech-body" id="techBodyAuth">
+                    <div class="tech-row">
+                        <span class="tech-label">Error Code</span>
+                        <span class="tech-value">HTTP 404 Not Found</span>
+                    </div>
+                    <div class="tech-row">
+                        <span class="tech-label">Request Method</span>
+                        <span class="tech-value">GET</span>
+                    </div>
+                    <div class="tech-row">
+                        <span class="tech-label">Timestamp</span>
+                        <span class="tech-value" id="timestampAuth"></span>
+                    </div>
+                    <div class="tech-row">
+                        <span class="tech-label">Requested Path</span>
+                        <span class="tech-value error-path" id="requestedPathAuth">/meetings/sprint-review-q4/old-agenda</span>
+                    </div>
+                    <div class="tech-row">
+                        <span class="tech-label">Resource Type</span>
+                        <span class="tech-value">Workspace Route</span>
+                    </div>
+                    <div class="tech-row">
+                        <span class="tech-label">Session Status</span>
+                        <span class="tech-value" style="color: var(--accent-lime);">✓ Active</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Same Helpful Links Footer -->
+            <div class="help-links-footer">
+                <a href="#" class="help-link-item" onclick="handleQuickLink('meetings')">
+                    <i class="fas fa-video"></i> My Meetings
+                </a>
+                <a href="#" class="help-link-item" onclick="handleQuickLink('calendar')">
+                    <i class="fas fa-calendar-alt"></i> Calendar
+                </a>
+                <a href="#" class="help-link-item" onclick="handleQuickLink('support')">
+                    <i class="fas fa-life-ring"></i> Get Help
+                </a>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- ==========================================
+         JAVASCRIPT - Unified 404 Logic
+         ========================================== -->
+    <script>
+        // ============================================
+        // INITIALIZE TIMESTAMPS & RANDOM PATHS
+        // ============================================
+        function initTimestamps() {
+            const now = new Date();
+            const formatted = now.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+            
+            document.getElementById('timestampGuest').textContent = formatted;
+            document.getElementById('timestampAuth').textContent = formatted;
+        }
+        initTimestamps();
+        
+        // Random paths for realism
+        const possiblePaths = [
+            '/meetings/sprint-review-q4/nonexistent-page',
+            '/dashboard/reports/2024/q4/deleted-report',
+            '/team/members/old-profile/john-doe',
+            '/settings/integrations/removed-slack',
+            '/api/v2/legacy-endpoint/data'
+        ];
+        
+        document.getElementById('requestedPathGuest').textContent = possiblePaths[Math.floor(Math.random() * possiblePaths.length)];
+        document.getElementById('requestedPathAuth').textContent = possiblePaths[Math.floor(Math.random() * possiblePaths.length)];
+        
+        // ============================================
+        // PAGE SWITCHER (Demo Toggle)
+        // ============================================
+        function showPage(mode) {
+            const guestPage = document.getElementById('guestPage');
+            const authPage = document.getElementById('authPage');
+            const btnGuest = document.getElementById('btnGuestView');
+            const btnAuth = document.getElementById('btnAuthView');
+            const indicator = document.getElementById('currentIndicator');
+            
+            if (mode === 'guest') {
+                guestPage.classList.remove('hidden');
+                authPage.classList.add('hidden');
+                btnGuest.classList.add('active');
+                btnAuth.classList.remove('active');
+                indicator.textContent = '🌐 Viewing: GUEST MODE';
+                console.log('[404] Showing Guest 404 Page');
+            } else {
+                guestPage.classList.add('hidden');
+                authPage.classList.remove('hidden');
+                btnGuest.classList.remove('active');
+                btnAuth.classList.add('active');
+                indicator.textContent = '🔐 Viewing: AUTHENTICATED MODE';
+                console.log('[404] Showing Authenticated 404 Page (Same Layout)');
+            }
+        }
+        
+        // ============================================
+        // TECH PANEL TOGGLES (Separate for Each Page)
+        // ============================================
+        function toggleTechPanel() {
+            const body = document.getElementById('techBody');
+            const icon = document.getElementById('techToggleIcon');
+            
+            if (body.classList.contains('visible')) {
+                body.classList.remove('visible');
+                icon.classList.remove('open');
+            } else {
+                body.classList.add('visible');
+                icon.classList.add('open');
+            }
+        }
+        
+        function toggleTechPanelAuth() {
+            const body = document.getElementById('techBodyAuth');
+            const icon = document.getElementById('techToggleIconAuth');
+            
+            if (body.classList.contains('visible')) {
+                body.classList.remove('visible');
+                icon.classList.remove('open');
+            } else {
+                body.classList.add('visible');
+                icon.classList.add('open');
+            }
+        }
+        
+        // ============================================
+        // GUEST MODE HANDLERS
+        // ============================================
+        function handleGuestAction(action) {
+            const messages = {
+                home: {
+                    title: '🏠 Redirecting to Homepage...',
+                    message: 'Taking you to the MeetIO landing page where you can learn more about our platform.'
+                },
+                signup: {
+                    title: '🚀 Let\'s Get You Set Up!',
+                    message: 'Redirecting to sign-up page. Start your 14-day free trial — no credit card required!'
+                }
+            };
+            
+            const msg = messages[action];
+            console.log(`[404 Guest] Action: ${action}`, msg);
+            alert(`${msg.title}\n\n${msg.message}\n\n(In production, this would navigate to the appropriate route)`);
+        }
+        
+        function handleHelpLink(link) {
+            const actions = {
+                search: 'Opening site-wide search...',
+                sitemap: 'Loading XML sitemap...',
+                contact: 'Opening contact form...'
+            };
+            console.log(`[404 Guest] Help link: ${link}`);
+            alert(`🔗 ${actions[link]}\n\n(This would open in the current window or a modal)`);
+        }
+        
+        // ============================================
+        // AUTHENTICATED MODE HANDLERS
+        // ============================================
+        function handleAuthAction(action) {
+            const messages = {
+                dashboard: {
+                    title: '✅ Returning to Dashboard',
+                    message: 'Navigating to your main dashboard. All your meetings, calendar, and recent activity are waiting.'
+                }
+            };
+            
+            const msg = messages[action];
+            console.log(`[404 Auth] Action: ${action}`, msg);
+            alert(`${msg.title}\n\n${msg.message}\n\n(Router would navigate to: /dashboard)`);
+        }
+        
+        function handleGoBack() {
+            const btn = event.target.closest('.btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner"></span> Going back...';
+            
+            setTimeout(() => {
+                alert('⬅️ History Back\n\nIn production, this would call:\nwindow.history.back()\n\nto return you exactly where you were before the 404.');
+                btn.innerHTML = originalText;
+            }, 800);
+        }
+        
+        function handleQuickLink(destination) {
+            const routes = {
+                meetings: '/meetings',
+                calendar: '/calendar',
+                support: '/support'
+            };
+            
+            console.log(`[404 Auth] Quick link: ${destination} → ${routes[destination]}`);
+            alert(`🎯 Quick Navigation\n\nNavigating to: ${routes[destination]}\n\nThis keeps the user productive without full page reload.`);
+        }
+        
+        // ============================================
+        // CONSOLE BRANDING
+        // ============================================
+        console.log('%c🔴 MEETIO 404 PAGES', 'font-size: 28px; font-weight: bold; color: #ff4f8b; background: #0a0a0a; padding: 12px 20px; border-radius: 4px;');
+        console.log('%cUnified Layout Design v3.0', 'font-size: 14px; color: #666;');
+        console.log('%c━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #333;');
+        console.log('%c✅ Both pages use IDENTICAL layout:', 'font-weight: bold; color: #c6ff3d;');
+        console.log('  • Same two-column grid (Illustration | Content)');
+        console.log('  • Same bug icon with glitch effects');
+        console.log('  • Same status badge, title, message structure');
+        console.log('  • Same collapsible tech panel');
+        console.log('  • Same footer links');
+        console.log('%cOnly differences:', 'font-weight: bold; color: #ffe500;');
+        console.log('  • Guest: "Go to Homepage" + "Start Free Trial" buttons');
+        console.log('  • Auth: "Go to Dashboard" + "Go Back" buttons');
+        console.log('  • Auth has minimal top bar (user badge only)');
+        console.log('%cUse selector in top-right to switch views.', 'font-style: italic; color: #888;');
+    </script>
+
+</body>
+</html>
