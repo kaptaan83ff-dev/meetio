@@ -75,11 +75,15 @@ Web application only. No mobile app. All features listed in PRD Sections 1–19.
 | Email                | Resend                                                                         | Free tier (3,000 emails/month) |
 | Schema Migrations    | migrate-mongo                                                                  | Latest                         |
 | E2E Encryption       | tweetnacl (browser), PyNaCl (server)                                           | Latest                         |
-| JWT Library          | **PyJWT** ≥ 2.8.0                                                              | ≥ 2.8.0                        |
-| Frontend Hosting     | Cloudflare Pages (recommended)                                                 | —                              |
-| Backend Hosting      | Railway (recommended)                                                          | —                              |
 
-> **JWT library:** Use `PyJWT>=2.8.0`. Do **not** use `python-jose` — it is unmaintained, has known CVEs, and its own maintainers have deprecated it. See §7.1 for implementation.
+| Auth Library | FastAPI Users (latest) | Library-managed auth flows (registration, login, OAuth, password reset) |
+| JWT Library | PyJWT ≥ 2.8.0 | Used internally by FastAPI Users; also for any standalone token needs |
+
+| JWT Library | **PyJWT** ≥ 2.8.0 | ≥ 2.8.0 |
+| Frontend Hosting | Cloudflare Pages (recommended) | — |
+| Backend Hosting | Railway (recommended) | — |
+
+> **Auth Strategy:** Use `fastapi-users` for core authentication flows (registration, login, OAuth, password reset). This ensures industry-standard security and session management. Use `PyJWT>=2.8.0` for any internal/standalone token needs. Do **not** use `python-jose`. See §7.1 for implementation.
 
 ### 1.4 Target Scale
 
@@ -665,9 +669,6 @@ R2_PUBLIC_URL=https://recordings.meetio.app
 RESEND_API_KEY=...
 EMAIL_FROM=noreply@meetio.app
 
-# OTP
-OTP_EXPIRE_MINUTES=10
-OTP_MAX_ATTEMPTS=5
 ```
 
 #### React Frontend (Vite)
@@ -1021,44 +1022,36 @@ passlib[argon2]==1.7.4
 
 ```python
 # backend/services/auth.py
-import jwt
-from jwt.exceptions import InvalidTokenError
-from datetime import datetime, timedelta
+FastAPI Users manages token creation and validation internally via JWTStrategy
+or DatabaseStrategy. Do not implement create_access_token / decode_token manually.
 
-def create_access_token(data: dict, expires_delta: timedelta) -> str:
-    payload = data.copy()
-    payload["exp"] = datetime.utcnow() + expires_delta
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+Use PyJWT>=2.8.0 only for standalone internal token needs outside of auth flows.
+Do not use python-jose — deprecated, has unpatched CVEs.
 
-def create_refresh_token(data: dict) -> str:
-    payload = data.copy()
-    payload["exp"] = datetime.utcnow() + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+Strategy choice (pick one and apply consistently across all documents):
+- JWTStrategy: stateless, no session document, no server-side revocation possible.
+- DatabaseStrategy: stateful, requires sessions collection, supports
+  DELETE /settings/sessions/{id} remote revocation.
 
-def decode_token(token: str) -> dict:
-    try:
-        return jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=["HS256"],    # ← explicit allowlist — algorithm confusion impossible
-        )
-    except InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+MeetIO uses DatabaseStrategy to support remote session revocation (Feature 3).
 ```
 
 ### 7.2 Authentication & Session Security
 
-| Requirement           | Implementation                           |
-| --------------------- | ---------------------------------------- |
-| Password hashing      | argon2 (via passlib)                     |
-| JWT signing           | HS256 with 64-byte random secret         |
-| JWT library           | PyJWT ≥ 2.8.0                            |
-| Token storage         | HttpOnly, Secure, SameSite=Lax cookies   |
-| Access token TTL      | 4 hours                                  |
-| Refresh token TTL     | 15 days                                  |
+| Requirement      | Implementation                   |
+| ---------------- | -------------------------------- |
+| Password hashing | argon2 (via passlib)             |
+| JWT signing      | HS256 with 64-byte random secret |
+| JWT library      | PyJWT ≥ 2.8.0                    |
+
+| Token storage | HttpOnly, Secure, SameSite=Lax cookies — configured via
+FastAPI Users CookieTransport, not set manually |
+
+| Access token TTL | 4 hours |
+| Refresh token TTL | 15 days |
 | Refresh token storage | Hashed (argon2) in `sessions` collection |
-| OTP expiry            | 10 minutes                               |
-| OTP max attempts      | 5 per session, then lockout              |
+| Verification Link Expiry | Usually 24-48 hours (managed by FastAPI Users) |
+| Password Reset Link Expiry | Usually 1-2 hours (managed by FastAPI Users) |
 
 ### 7.3 Input Validation
 
@@ -1256,7 +1249,6 @@ Upstash free tier: **10,000 commands/day**. This is tight. Budget:
 | Celery (50 meetings/day × 6 tasks × 10 cmds) | 3,000    | 3,000        |
 | Dashboard cache reads                        | ~2,000   | 2,000        |
 | WebSocket pub/sub                            | ~1,500   | 1,500        |
-| OTP storage (Redis TTL keys)                 | ~200     | 200          |
 | **Total estimated**                          |          | **~6,700**   |
 
 Headroom: ~3,300 commands/day. **Switch to Upstash pay-per-use or Redis Cloud (30 MB, no command limit) before public launch.**
@@ -1277,18 +1269,13 @@ FastAPI manages a WebSocket server for all real-time app events (notifications, 
 
 ```python
 # backend/websocket/manager.py
-import asyncio
-import json
-import redis.asyncio as aioredis
-from fastapi import WebSocket
-
-redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-
-
 class ConnectionManager:
     """
     Manages WebSocket connections on THIS instance only.
     Publishing is done via Redis pub/sub so all instances receive the event.
+    Two channel namespaces:
+      ws:user:{user_id}       — personal events (notifications, session revocation)
+      ws:meeting:{meeting_id} — room-wide events (controls, chat, waiting room)
     """
 
     def __init__(self):
@@ -1313,8 +1300,12 @@ class ConnectionManager:
             self.active_connections[user_id].discard(ws)
 
     async def broadcast_to_user(self, user_id: str, message: dict):
-        """Publish to Redis — all instances pick it up and deliver locally."""
+        """Publish to ws:user:{user_id} — personal events."""
         await redis_client.publish(f"ws:user:{user_id}", json.dumps(message))
+
+    async def broadcast_to_meeting(self, meeting_id: str, message: dict):
+        """Publish to ws:meeting:{meeting_id} — room-wide events (controls, chat, waiting room)."""
+        await redis_client.publish(f"ws:meeting:{meeting_id}", json.dumps(message))
 
 
 manager = ConnectionManager()
@@ -1322,20 +1313,27 @@ manager = ConnectionManager()
 
 async def redis_listener(mgr: ConnectionManager):
     """
-    Subscribes to all ws:user:* channels.
+    Subscribes to ws:user:* and ws:meeting:* channels.
     Runs as a background asyncio task on app startup.
-    Forwards incoming Redis messages to local WebSocket connections.
+    Routes each message to the correct local connections.
     """
     pubsub = redis_client.pubsub()
-    await pubsub.psubscribe("ws:user:*")
+    await pubsub.psubscribe("ws:user:*", "ws:meeting:*")
     async for msg in pubsub.listen():
         if msg["type"] != "pmessage":
             continue
         channel: str = msg["channel"]
-        user_id = channel.removeprefix("ws:user:")
         try:
             data = json.loads(msg["data"])
-            await mgr._deliver_local(user_id, data)
+            if channel.startswith("ws:user:"):
+                user_id = channel.removeprefix("ws:user:")
+                await mgr._deliver_local(user_id, data)
+            elif channel.startswith("ws:meeting:"):
+                meeting_id = channel.removeprefix("ws:meeting:")
+                # Deliver to all users currently connected to this meeting
+                for uid, connections in mgr.active_connections.items():
+                    if connections:
+                        await mgr._deliver_local(uid, data)
         except Exception:
             pass  # Never crash the listener on a bad message
 ```
@@ -2423,8 +2421,11 @@ pydantic==2.6.4
 motor==3.4.0               # async MongoDB driver
 redis[asyncio]==5.0.3      # async Redis client for pub/sub
 celery==5.3.6
-PyJWT>=2.8.0               # ← replaces python-jose (deprecated, has CVEs)
-passlib[argon2]==1.7.4
+
+fastapi-users[motor]==13.x      # or latest — handles auth flows
+PyJWT>=2.8.0                    # used internally by fastapi-users; keep explicit
+passlib[argon2]==1.7.4          # used internally by fastapi-users; keep explicit
+
 httpx==0.27.0
 livekit==0.12.0
 deepgram-sdk==3.2.7
@@ -2433,6 +2434,8 @@ anthropic==0.20.0
 boto3==1.34.51             # Cloudflare R2 (S3-compatible API)
 resend==0.7.0
 pynacl==1.5.0
+Pillow>=10.3.0             # Avatar re-encoding to WebP (strips EXIF metadata)
+pyotp>=2.9.0               # TOTP 2FA code generation and verification
 structlog==24.1.0
 sentry-sdk[fastapi]==1.41.0
 pytest==8.1.1

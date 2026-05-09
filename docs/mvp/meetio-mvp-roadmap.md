@@ -1,10 +1,45 @@
 # MVP Roadmap: MeetIO
 
-**Source:** PRD v2.0, TRD v2.0, DB Schema v1, API Spec v1.0
+# MVP Roadmap: MeetIO
+
+**Source:** PRD, TRD, DB Schema , API Spec 
 **Date:** April 30, 2026
 **Project:** MeetIO — Video conferencing for students and small teams
 **Platform:** Web only (v1)
 **Developer:** Solo
+
+> **Cross-reference:** This roadmap uses its own feature numbering (F1–F28). The feature breakdown docs and hierarchy use a different numbering (Sections 1–26). Use this map when cross-referencing:
+
+| Roadmap Feature | Breakdown Section | Name |
+|---|---|---|
+| F1 | §1 | Infrastructure & DevOps |
+| F2 | §2 | Authentication |
+| F3 | §3 | Session Management |
+| F4 | §4 | User Profile & Settings |
+| F5 | §5 | Meeting Creation & Management |
+| F6 | §6 | Pre-Meeting Lobby |
+| F7 | §7 | Guest Join Flow (within §6) |
+| F8 | §9 | Waiting Room |
+| F9 | §7 | In-Meeting Experience |
+| F10 | §7 | In-Meeting Controls (within §7) |
+| F11 | §8 | In-Meeting Chat |
+| F12 | §10 | Recording |
+| F13 | §11 | Guest Mid-Meeting Conversion |
+| F14 | §12 | WebSocket — Real-Time Events |
+| F15 | §13 | Live Captions |
+| F16 | §14 | Post-Meeting Transcription |
+| F17 | §15 | AI Recap Pipeline |
+| F18 | §16 | Action Items |
+| F19 | §17 | Notification System |
+| F20 | §18 | End-of-Meeting Screens |
+| F21 | §19 | Meeting History & Post-Meeting Views |
+| F22 | §20 | Dashboard |
+| F23 | §21 | Settings (Full) |
+| F24 | §22 | Messenger |
+| F25 | §23 | Calendar |
+| F26 | §24 | Offline & Degraded Mode |
+| F27 | §25 | GDPR & Data Lifecycle |
+| F28 | §26 | Observability |
 
 ---
 
@@ -16,7 +51,12 @@
 - Status: [ ] Not started
 
 ### Feature 2: Authentication
-- Description: Email/password registration with OTP verification, Google OAuth, JWT via HttpOnly cookies (access 4h, refresh 15d), password reset, provider linking, TOTP 2FA setup and verification.
+- Description: Email/password registration with OTP verification, Google OAuth, 
+JWT via HttpOnly cookies (access 4h, refresh 15d) — all auth flows managed by 
+FastAPI Users (CookieTransport + DatabaseStrategy). Password reset and provider 
+linking handled via FastAPI Users built-in routes. TOTP 2FA is a custom addition 
+on top. POST /auth/refresh and OTP logic are custom routes — not provided by 
+the library.
 - Status: [ ] Not started
 
 ### Feature 3: Session Management
@@ -24,7 +64,8 @@
 - Status: [ ] Not started
 
 ### Feature 4: User Profile & Settings (Core)
-- Description: Display name, avatar upload (re-encoded to WebP), timezone, language preference, change email (OTP), change password, linked accounts view/unlink.
+- Description: Display name, avatar upload (re-encoded to WebP), timezone, language preference, change password, linked accounts view/unlink.
+- ⚠️ Change email (OTP) is NOT implemented here — it requires the full OTP send/verify flow (POST /auth/otp/send + POST /auth/otp/verify) which is built as part of Feature 23 (Settings Full, P2). Removed from this description to match the hierarchy implementation.
 - Status: [ ] Not started
 
 ### Feature 5: Meeting Creation & Management
@@ -104,8 +145,17 @@
 - Description: Action cards (Start / Join / Schedule), last 5 recaps, top 10 open action items, stats (meeting count + time this week/month), next 5 upcoming meetings, WebSocket live updates, 5-min cache, lazy loading.
 - Status: [ ] Not started
 
-### Feature 23: Settings (Full)
+### Feature 23: Observability & Monitoring  ← moved from P3, renumbered
+- Description: Sentry (backend + frontend, PII off), BetterStack uptime monitors, structured logging (structlog), Atlas storage alert at 400MB, Cloudflare Pages analytics.
+- ⚠️ Required before first public deploy — TRD Appendix B Pre-Launch Checklist explicitly requires Sentry and BetterStack to be active. Health check endpoint is already covered in Feature 1 (P1 Infrastructure).
+- Status: [ ] Not started
+
+### Feature 24: Settings (Full) 
 - Description: Account (name, email OTP change, password, 2FA enable/disable, linked accounts), Notifications (per-type email toggles), Privacy (GDPR data export 72h, account deletion 30-day soft delete), Sessions (list + revoke), Login history (90 days).
+- Status: [ ] Not started
+
+### Feature 25: Calendar
+- Description: Day/Week/Month views, MeetIO meeting events, event creation/edit/delete, conflict detection, Google Calendar two-way sync (OAuth), push notification channels (48h renewal window via Celery Beat), dead-letter queue for failed sync events.
 - Status: [ ] Not started
 
 ---
@@ -113,36 +163,32 @@
 ## Advanced / Future (Priority 3)
 > Important but not required for launch.
 
-### Feature 24: Messenger (E2E Encrypted)
+### Feature 26: Messenger (E2E Encrypted)
 - Description: tweetnacl key generation, non-extractable CryptoKey IndexedDB storage, key backup (AES-GCM + PBKDF2, client-side before upload), 1:1 DMs, group chat, file attachments, replies, reactions, client-side search, group key rotation on member removal.
 - Status: [ ] Not started
 
-### Feature 25: Calendar
-- Description: Day/Week/Month views, MeetIO meeting events, event creation/edit/delete, conflict detection, Google Calendar two-way sync (OAuth), push notification channels (48h renewal window via Celery Beat), dead-letter queue for failed sync events.
-- Status: [ ] Not started
-
-### Feature 26: Offline / Degraded Mode
+### Feature 27: Offline / Degraded Mode
 - Description: Mid-meeting reconnect banner (LiveKit 30s auto-retry), offline banner (blocks start/schedule/message), read-only cache for meeting history, automatic recovery on reconnect.
 - Status: [ ] Not started
 
-### Feature 27: GDPR & Data Lifecycle
-- Description: Guest data purge (24h), chat_messages purge (24h), account deletion scheduler (30-day), recording expiry (1-year), data export zip, login history 90-day TTL, notification 90-day TTL, dead-letter event 7-day cleanup, PII scrubbing in Sentry.
-- Status: [ ] Not started
-
-### Feature 28: Observability & Monitoring
-- Description: Sentry (backend + frontend, PII off), BetterStack uptime monitors, structured logging (structlog), health check endpoint (`/health` with MongoDB/Redis/Celery checks), Atlas storage alert at 400MB, Cloudflare Pages analytics.
+### Feature 28: GDPR & Data Lifecycle (Automated Purge Jobs Only)
+- Description: Automated Celery purge tasks only — guest data (24h), chat_messages (24h), account deletion scheduler (30-day soft delete), recording expiry (1-year). Notification TTL and dead-letter cleanup are handled by MongoDB TTL indexes (no Celery task needed). PII scrubbing in Sentry is covered by Feature 28.
+- ⚠️ Note: The GDPR-facing endpoints (POST /settings/export and POST /settings/delete-account) are NOT part of this feature — they are implemented in Feature 4 (P1) alongside the rest of core settings. This feature covers only the background automation that runs after those endpoints are called.
 - Status: [ ] Not started
 
 ---
+
+- **Full platform:** Features 24–28 complete (Messenger, Calendar, Offline, GDPR jobs)
 
 ## Summary
 
 | Priority | Features | Description |
 |---|---|---|
 | Core MVP (P1) | 14 | Infrastructure through WebSocket — app is usable end-to-end |
-| Secondary MVP (P2) | 9 | Transcription, AI, post-meeting, dashboard, settings |
-| Advanced / Future (P3) | 5 | Messenger, Calendar, Offline, GDPR lifecycle, Observability |
+| Secondary MVP (P2) | 10 | Transcription, AI, post-meeting, dashboard, settings, observability |
+| Advanced / Future (P3) | 4 | Messenger, Calendar, Offline, GDPR automated jobs |
 | **Total** | **28** | |
+
 
 - **Estimated Timeline (solo developer):**
   - Core MVP: 6–8 weeks
@@ -158,4 +204,4 @@
 ---
 
 _Last Updated: April 30, 2026_
-_Source: meetio-prd-v2.md · meetio-trd-v2.md_
+_Source: meetio-prd.md · meetio-trd.md_

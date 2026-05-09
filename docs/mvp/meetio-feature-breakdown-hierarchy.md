@@ -38,6 +38,7 @@
 - Subtask: Create `backend/app/celery_app.py` with Celery instance, broker + result backend from Redis URL
 - Subtask: Register all 6 Celery Beat schedules: `renew-gcal-channels` (01:00 UTC), `process-dead-letter-queue` (30min), `purge-guest-data` (02:00 UTC), `process-account-deletions` (02:30 UTC), `send-due-date-reminders` (09:00 UTC), `expire-meeting-recordings` (03:00 UTC)
 - Subtask: Create `backend/app/tasks/` directory with task modules: `ai_pipeline.py`, `gdpr.py`, `calendar.py`, `notifications.py`, `dlq.py`
+- Subtask: ⚠️ Create stub implementations in `gdpr.py` immediately for the three P3 tasks that Beat references: `purge_expired_guest_data`, `process_pending_deletions`, `expire_old_recordings` — each with a `pass` body and a `# TODO: Feature 25 (P3)` comment. Beat will fail with `NotRegistered` at runtime if these functions don't exist when the schedule fires, even if the real logic isn't built yet.
 - Subtask: Create `Procfile` or Railway service config for Celery worker: `celery -A app.celery_app worker --loglevel=info`
 - Subtask: Create separate Railway service config for Celery Beat: `celery -A app.celery_app beat --loglevel=info`
 - Subtask: Write integration test dispatching a simple test task and verifying result stored in Redis
@@ -77,50 +78,45 @@
 ## Feature 2: Authentication [MVP]
 
 ### Task: Email/Password Registration [MVP]
-- Subtask: Create `POST /auth/signup` route — validate email (RFC 5322), password (min 8 chars, 1 uppercase, 1 number) via Pydantic
-- Subtask: Store OTP (6-digit, SHA-256 hashed) in Redis with key `otp:{email}:{purpose}`, TTL 10min, attempt counter `otp:attempts:{session_id}` max 5
-- Subtask: Send OTP email via Resend `send_email` Celery task with subject "Verify your MeetIO account"
-- Subtask: Create `POST /auth/otp/verify` route — retrieve hashed OTP, compare, on match create `users` document with `is_active: True`, set HttpOnly cookies
-- Subtask: Hash password with `passlib[argon2]` `CryptContext` before storing in `users.password_hash`
-- Subtask: Write unit test for Argon2 hash + verify cycle
-- Subtask: Write E2E test: sign up → OTP email → verify → redirect to dashboard
+- Subtask: Configure FastAPI Users with `get_register_router()` mapped to `/auth`
+- Subtask: Implement `on_after_register` hook in `UserManager`: dispatch Resend email via Celery with verification token
+- Subtask: Configure `get_verify_router()` to handle `POST /auth/verify` with the provided token, which sets `is_active: True`
+- Subtask: FastApi Users automatically validates password via default policies and hashes via its configured backend
+- Subtask: Write E2E test: sign up via `/auth/register` → token email sent → `/auth/verify` → redirect to dashboard
 
 ### Task: Email/Password Sign-In [MVP]
-- Subtask: Create `POST /auth/signin` route — look up user by email, verify Argon2 hash, rate limit 10 req/15min per IP via Redis counter
-- Subtask: If `totp_enabled: True` → store `totp_session_id` in Redis (10min TTL), return `{requires_2fa: true, totp_session_id}` with no cookies set
-- Subtask: If `totp_enabled: False` → create `sessions` document, encode JWT with PyJWT (`HS256`, `algorithms=["HS256"]` on decode), set HttpOnly cookies
-- Subtask: Create `POST /auth/2fa/verify` route — retrieve `totp_session_id` from Redis, verify TOTP code, lockout after 5 failures, set cookies on success
-- Subtask: Write unit test: PyJWT encode → decode with explicit `algorithms=["HS256"]` allowlist
-- Subtask: Write integration test: sign in with 2FA → verify TOTP → cookies set
+- Subtask: Configure FastAPI Users `get_auth_router()` mapped to `/auth`
+- Subtask: Setup `CookieTransport` (HttpOnly, Secure, SameSite=Lax) and `DatabaseStrategy` backed by `sessions` collection
+- Subtask: `POST /auth/login` uses FastAPI Users automatically to verify credentials and issue `access_token` cookie
+- Subtask: If 2FA enabled, intercept via custom middleware/logic to require TOTP code via `/auth/2fa/verify` before granting full access (custom feature)
+- Subtask: Write integration test: `/auth/login` returns cookie on success
 
 ### Task: Google OAuth [MVP]
-- Subtask: Create `GET /auth/google` route — build Google OAuth URL with `openid email profile` scopes, `intent` param, `state` containing redirect URL (CSRF-safe)
-- Subtask: Create `GET /auth/google/callback` route — exchange code for tokens server-side, extract email/name/avatar/google_id
-- Subtask: If email not in DB → create new `users` document, `providers: ["google"]`, `google_id`, import avatar to R2 avatars bucket
-- Subtask: If email exists with `providers: ["email"]` → send OTP to link accounts, return redirect with `?link_required=true`
-- Subtask: If email exists with `providers: ["google"]` → create session, set cookies, redirect to dashboard
-- Subtask: After link: append `"google"` to `users.providers`, store `google_id`, offer avatar import via toast
+- Subtask: Configure FastAPI Users `get_oauth_router()` mapped to `/auth/google` with Google OAuth backend
+- Subtask: Add `GET /auth/google/authorize` and `GET /auth/google/callback` logic provided by the library
+- Subtask: Extend library's `on_after_request` or OAuth logic to import name/avatar into custom fields in `users` collection upon first login
+- Subtask: Write E2E test: OAuth flow correctly issues access cookie
 
 ### Task: Password Reset [MVP]
-- Subtask: Create `POST /auth/password/forgot` — look up email silently (always return 200), if found store OTP in Redis + dispatch email via Celery
-- Subtask: Create `POST /auth/password/reset` — verify OTP from Redis, validate new password strength, hash with Argon2
-- Subtask: On success: update `users.password_hash`, call `sessions.delete_many({user_id})` to invalidate all sessions
-- Subtask: Clear all cookies in response after password reset
-- Subtask: Write integration test: unknown email → 200 returned (no enumeration), known email → OTP stored in Redis
+- Subtask: Configure FastAPI Users `get_reset_password_router()` mapped to `/auth`
+- Subtask: Implement `on_after_forgot_password` hook in `UserManager`: generate reset token, dispatch Resend email
+- Subtask: Route `POST /auth/forgot-password` (triggers email) and `POST /auth/reset-password` (receives token and new password)
+- Subtask: In `on_after_reset_password`, invalidate all existing user sessions in the `sessions` collection
+- Subtask: Write integration test: unknown email -> 200 returned, known email -> token sent, reset -> password updated
 
 ### Task: Token Refresh with Mutex [MVP]
-- Subtask: Create `POST /auth/refresh` route — read `refresh_token` cookie only, verify hash against `sessions` collection
-- Subtask: On valid refresh: rotate token (delete old `sessions` doc, create new one with new hash), issue new `access_token` cookie
-- Subtask: On invalid/expired: return `TOKEN_EXPIRED` 401, clear both cookies
+- Subtask: Implement custom `POST /auth/refresh` route (FastAPI Users natively focuses on stateless access tokens or auto-renewal via strategy)
+- Subtask: Route reads `refresh_token` custom cookie, verifies hash against `sessions` collection
+- Subtask: On valid refresh: rotate token (delete old `sessions` doc, create new one), issue new `access_token` cookie
 - Subtask: Implement frontend mutex in `frontend/src/lib/apiClient.ts`: `let refreshPromise: Promise<void> | null = null`, return existing promise if in-flight
 - Subtask: Write unit test: 4 concurrent `apiRequest()` calls all return 401 → exactly one `fetch("/auth/refresh")` call fired
 
 ### Task: Sign Out [MVP]
-- Subtask: Create `POST /auth/signout` route — read `access_token` cookie, extract `session_id` from payload
-- Subtask: Mark `sessions` document as `is_revoked: True`
-- Subtask: Clear both cookies: `Set-Cookie: access_token=; Max-Age=0` and `Set-Cookie: refresh_token=; Max-Age=0`
-- Subtask: Return `204` no body
-- Subtask: On frontend: call `useAuthStore.getState().logout()` after `POST /auth/signout` resolves, redirect to `/signin`
+- Subtask: Use FastAPI Users `POST /auth/logout` via `get_auth_router()`
+- Subtask: `DatabaseStrategy` automatically marks the token as revoked in `sessions` collection
+- Subtask: `CookieTransport` automatically clears the access cookie (`Max-Age=0`)
+- Subtask: Return `204` or `200` as provided by the library
+- Subtask: On frontend: call `useAuthStore.getState().logout()` after logout resolves, redirect to `/signin`
 
 ---
 
@@ -164,14 +160,17 @@
 - Subtask: Implement `PUT /settings` — update `theme`, `timezone`, `email_notifications` toggles on `users` document
 - Subtask: Implement `GET /settings/linked-accounts` — return `users.providers` array with linked_at timestamps
 - Subtask: Implement `DELETE /settings/linked-accounts/{provider}` — reject if only one provider remains (`FORBIDDEN` 403), else remove from `providers` array
+- Subtask: ⚠️ Change email (OTP) is listed in the MVP Roadmap Feature 4 description but its implementation subtasks live in Feature 21 (Settings Full, P2). Do NOT implement email change here. Remove "change email (OTP)" from the MVP Roadmap Feature 4 description to eliminate the contradiction — it belongs in Feature 21.
 - Subtask: Write integration test: delete last provider → 403, delete second provider → 204 + providers array updated
 
 ### Task: GDPR Data Export [MVP]
 - Subtask: Implement `POST /settings/export` — create a `data_export` Celery task, return `202 Accepted`
 - Subtask: Celery task: collect meetings, action_items, transcripts, messages, profile into a zip archive in memory
+- Subtask: ⚠️ Also include login history in the export: call `ZRANGEBYSCORE login_history:{user_id} -inf +inf` from Redis, parse each JSON entry, serialize the full list as `login_history.json` inside the zip. Login history lives only in Redis (not MongoDB) — if omitted here, it is silently excluded from user data exports, which is a GDPR gap.
 - Subtask: Upload zip to R2 `exports/{user_id}/{timestamp}.zip` with 7-day object expiry
 - Subtask: Send email via Resend with presigned download link (7-day expiry)
 - Subtask: Write integration test: POST /settings/export → verify Celery task queued with correct user_id
+- Subtask: Write unit test: data export zip contains `login_history.json` with correct entries
 
 ### Task: GDPR Account Deletion [MVP]
 - Subtask: Implement `POST /settings/delete-account` — require exact string `"DELETE MY ACCOUNT"` in body, else `VALIDATION_ERROR`
@@ -196,7 +195,7 @@
 - Subtask: Accept `scheduled_at` (UTC ISO 8601) in `POST /meetings` body — validate it is in the future
 - Subtask: Create linked `calendar_events` document with `meeting_id`, `start_at`, `end_at` (start + 1h default), `user_id = host`
 - Subtask: Ensure meeting appears in `GET /dashboard/upcoming` (next 5 query) and `GET /calendar/events`
-- Subtask: Trigger `meeting.starting_soon` notification 15 minutes before `scheduled_at` via `send_due_date_reminders` Beat task
+- Subtask: Trigger `meeting.starting_soon` notification 15 minutes before `scheduled_at` using Celery `eta`, NOT the daily Beat task — schedule at meeting creation time: `send_starting_soon_notification.apply_async(args=[meeting_id], eta=scheduled_at - timedelta(minutes=15))`. The `send_due_date_reminders` Beat task (09:00 UTC daily) is only for action item due date reminders — it cannot deliver per-meeting per-time reminders.
 - Subtask: Write integration test: create scheduled meeting → appears in dashboard upcoming widget response
 
 ### Task: Meeting CRUD [MVP]

@@ -1,0 +1,53 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          
+      - name: Run migrations
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI_PRODUCTION }}
+          MONGODB_DB_NAME: "meetio"
+        run: |
+          npm install -g migrate-mongo
+          cd backend
+          # Note: This uses the Node.js migrate-mongo. 
+          # Ensure production environment allows connection from GitHub Actions IPs.
+          migrate-mongo up
+
+  deploy-backend:
+    needs: migrate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Railway
+        uses: railwayapp/railway-action@v1
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: "meetio-backend"
+
+  deploy-frontend:
+    needs: migrate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: "meetio-frontend"
+          directory: "frontend/dist"

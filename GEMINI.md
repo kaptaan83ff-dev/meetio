@@ -9,7 +9,7 @@ MeetIO is a high-performance video conferencing web application for students and
 - **Frontend:** React 18.3 (TSX), Vite 5.x, Zustand (State), Tailwind CSS (Styling), React Router v6.
 - **Backend:** Python 3.12, FastAPI 0.110+, Motor (Async MongoDB), Redis (Upstash).
 - **Infrastructure:** Celery + Celery Beat (Background Tasks), LiveKit (Real-time Video), Deepgram (STT), OpenAI/Anthropic (AI).
-- **Security:** PyJWT >= 2.8.0 (Auth), tweetnacl/PyNaCl (E2E Encryption).
+- **Security:** FastAPI Users (Auth Management), PyJWT >= 2.8.0 (Internal Tokens), tweetnacl/PyNaCl (E2E Encryption).
 - **Hosting:** Cloudflare Pages (Frontend), Railway (Backend), Cloudflare R2 (Storage).
 
 ## ?? Project Structure
@@ -34,7 +34,8 @@ MeetIO is a high-performance video conferencing web application for students and
 - **Validation:** Run `pytest` for backend and verify frontend changes against the `frontend-design` skill guidelines.
 
 ## ?? Constraints & Security
-- **No `python-jose`:** Use `PyJWT>=2.8.0` for all JWT operations.
+- **Auth Strategy:** Use `fastapi-users` with the Motor/MongoDB adapter. Avoid custom JWT logic unless extending library capabilities.
+- **No `python-jose`:** Use `PyJWT>=2.8.0` for any standalone JWT operations.
 - **Secrets:** Never commit `.env` files. Reference `.env.example` for required variables.
 - **Scope:** Web only (v1). No mobile app development.
 - **Assets:** Use locally generated CSS/SVG placeholders or WebP re-encoded images for performance.

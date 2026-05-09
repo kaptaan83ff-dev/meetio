@@ -1,7 +1,8 @@
 # MeetIO — API Specification
 > **Version:** 1.0
 > **Base URL:** `https://api.meetio.app/v1`
-> **Auth:** HttpOnly cookies (`access_token`, `refresh_token`). No Bearer headers.
+> **Auth:** Library-managed (FastAPI Users). HttpOnly cookies (`fastapiusersauth`).
+> **Auth Strategy:** JWT strategy with Cookie transport.
 > **Envelope:** Every response wraps in `{ success, data, error, meta }` — see §0.
 
 ---
@@ -80,10 +81,19 @@ Default `limit` = 20. Max = 100.
 
 ## 1. Auth
 
-### `POST /auth/signup`
+> Auth Strategy: FastAPI Users with CookieTransport + DatabaseStrategy.
+> Routes marked [FU] are managed by FastAPI Users.
+> Routes marked [Custom] are additions on top of the library.
+>
+> GET /auth/users/me        — [FU] Profile management.
+> POST /auth/verify         — [FU] Email verification via token link.
+> POST /auth/forgot-password — [FU] Request password reset link.
+> POST /auth/reset-password  — [FU] Complete password reset with token.
+
+### `POST /auth/register`  # FastAPI Users default - rename or override path`
 Auth: `—`
 
-Register with email and password. Sends a 6-digit OTP to the provided email. Account is not active until OTP is verified via `/auth/otp/verify`.
+Register a new user. Inherits validation from `fastapi-users`. Triggers `on_after_register` for email verification.
 
 **Request**
 ```json
@@ -98,8 +108,10 @@ Register with email and password. Sends a 6-digit OTP to the provided email. Acc
 ```json
 {
   "data": {
-    "message": "OTP sent to priya@example.com. Verify to activate your account.",
-    "otp_session_id": "otp_abc123"
+    "id": "usr_abc123",
+    "email": "priya@example.com",
+    "is_active": true,
+    "is_verified": false
   }
 }
 ```
@@ -108,51 +120,19 @@ Register with email and password. Sends a 6-digit OTP to the provided email. Acc
 
 ---
 
-### `POST /auth/signin`
+### `POST /auth/login`         # FastAPI Users default (form data: username + password)`
 Auth: `—`
 
-Sign in with email and password. On success, sets `access_token` and `refresh_token` HttpOnly cookies.
+Sign in with email and password. Managed by `fastapi-users` OAuth2 password flow.
 
-**Request**
-```json
-{
-  "email": "priya@example.com",
-  "password": "SecurePass1"
-}
+**Request (Form Data)**
+```
+Form Data (OAuth2 password flow — FastAPI Users requirement):
+username=priya@example.com&password=SecurePass1
 ```
 
-**Response `200` — 2FA not enabled**
-```json
-{
-  "data": {
-    "user": {
-      "id": "usr_abc123",
-      "display_name": "Priya Sharma",
-      "email": "priya@example.com",
-      "avatar_url": null,
-      "providers": ["email"]
-    }
-  }
-}
-```
-
-Sets cookies:
-```
-Set-Cookie: access_token=<jwt>; HttpOnly; Secure; SameSite=Lax; Max-Age=14400
-Set-Cookie: refresh_token=<jwt>; HttpOnly; Secure; SameSite=Lax; Max-Age=1296000
-```
-
-**Response `200` — 2FA enabled (no cookies set yet)**
-```json
-{
-  "data": {
-    "requires_2fa": true,
-    "totp_session_id": "totp_abc123"
-  }
-}
-```
-
-> When `requires_2fa: true` the client must call `POST /auth/2fa/verify`. No cookies are set until that call succeeds. `totp_session_id` expires in 10 minutes.
+**Response `204`**
+Success sets the auth cookie.
 
 **Errors:** `INVALID_CREDENTIALS` 401, `RATE_LIMIT_EXCEEDED` 429
 
@@ -192,14 +172,12 @@ Sets `access_token` and `refresh_token` cookies on success.
 
 ---
 
-### `POST /auth/signout`
+### `POST /auth/logout`        # FastAPI Users default
 Auth: `🔑`
 
-Revokes the current session's refresh token. Clears both cookies.
+Logs out the user and clears auth cookies.
 
-**Request:** empty body
-
-**Response `204`** — no body. Cookies cleared via `Max-Age=0`.
+**Response `204`**
 
 ---
 
@@ -221,16 +199,10 @@ Sets new `access_token` cookie. Old refresh token invalidated; new one set.
 
 ---
 
-### `GET /auth/google`
+### `GET /auth/google/authorize`
 Auth: `—`
 
 Redirects the browser to Google's OAuth consent screen.
-
-**Query params:**
-```
-intent=signin | signup | link    (default: signin)
-redirect=<url>                   (optional — return destination after auth)
-```
 
 **Response:** `302` redirect to Google OAuth URL.
 
@@ -239,24 +211,23 @@ redirect=<url>                   (optional — return destination after auth)
 ### `GET /auth/google/callback`
 Auth: `—`
 
-Google OAuth callback. Handled entirely server-side. Creates or links account, sets cookies, redirects to app.
+Google OAuth callback. Handled by `fastapi-users`. Creates or links account, sets cookies, redirects to app.
 
-**Response:** `302` redirect to `FRONTEND_URL/dashboard` (or `redirect` param if set).
-
-**Errors:** `EMAIL_TAKEN` 409 (if Google email matches an existing email/password account that needs OTP linking — redirects to frontend with error param).
+**Response:** `302` redirect to `FRONTEND_URL/dashboard`.
 
 ---
 
-### `POST /auth/otp/send`
+---
+
+### `POST /auth/verify`         # [FU]
 Auth: `—`
 
-Sends or resends a 6-digit OTP to an email address.
+Verifies an email address using a token from a verification link. Handled by `fastapi-users`.
 
 **Request**
 ```json
 {
-  "email": "priya@example.com",
-  "purpose": "signup"   // "signup" | "link_google" | "add_password"
+  "token": "verify_token_abc..."
 }
 ```
 
@@ -264,89 +235,52 @@ Sends or resends a 6-digit OTP to an email address.
 ```json
 {
   "data": {
-    "otp_session_id": "otp_abc123",
-    "expires_in_seconds": 600
+    "id": "usr_abc123",
+    "email": "priya@example.com",
+    "is_active": true,
+    "is_verified": true
   }
 }
 ```
 
-**Rate limit:** 3 requests per 15 min per email.
+**Errors:** `HTTP_ERROR` 400 (Invalid token)
 
 ---
 
-### `POST /auth/otp/verify`
+### `POST /auth/forgot-password`
 Auth: `—`
 
-Verifies a 6-digit OTP. On `signup` purpose: activates account and sets auth cookies.
-
-**Request**
-```json
-{
-  "otp_session_id": "otp_abc123",
-  "code": "847291"
-}
-```
-
-**Response `200`**
-```json
-{
-  "data": {
-    "verified": true,
-    "user": { ... }   // included for signup/link purposes
-  }
-}
-```
-
-**Errors:** `INVALID_OTP` 400, `OTP_LOCKED` 429 (after 5 failed attempts)
-
----
-
-### `POST /auth/password/forgot`
-Auth: `—`
-
-Initiates password reset. Sends OTP to registered email.
+Initiates password reset via `fastapi-users`. Sends reset token to email.
 
 **Request**
 ```json
 { "email": "priya@example.com" }
 ```
 
-**Response `200`**
-```json
-{
-  "data": {
-    "message": "If this email is registered, a reset code has been sent.",
-    "otp_session_id": "otp_abc123"
-  }
-}
-```
-
-> Always returns 200 regardless of whether email exists (prevents email enumeration).
+**Response `202`**
+Accepted.
 
 ---
 
-### `POST /auth/password/reset`
+### `POST /auth/reset-password`
 Auth: `—`
 
-Completes password reset after OTP verification.
+Completes password reset using a token.
 
 **Request**
 ```json
 {
-  "otp_session_id": "otp_abc123",
-  "code": "847291",
-  "new_password": "NewSecurePass1"
+  "token": "reset_token_abc...",
+  "password": "NewSecurePass1"
 }
 ```
 
 **Response `200`**
 ```json
-{ "data": { "message": "Password updated. All sessions have been invalidated." } }
+{ "data": { "message": "Password updated." } }
 ```
 
-> Invalidates all active sessions on all devices.
-
-**Errors:** `INVALID_OTP` 400, `VALIDATION_ERROR` 422
+**Errors:** `VALIDATION_ERROR` 422
 
 ---
 

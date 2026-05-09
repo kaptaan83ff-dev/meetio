@@ -1,0 +1,7 @@
+[build]
+builder = "dockerfile"
+
+[deploy]
+startCommand = "celery -A app.celery_app beat --loglevel=info --scheduler celery.beat.PersistentScheduler"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

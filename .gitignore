@@ -1,25 +1,65 @@
-# Python
+# -----------------------------
+# Environment Variables (ALL SENSITIVE FILES)
+# -----------------------------
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+**/.env*
+!.env.example
+
+# -----------------------------
+# OS & IDE Files
+# -----------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+
+# -----------------------------
+# Logs & Databases
+# -----------------------------
+*.log
+*.sqlite3
+*.sqlite3-journal
+
+# -----------------------------
+# Python / Backend (FastAPI)
+# -----------------------------
 __pycache__/
 *.py[cod]
 *$py.class
 .venv/
 venv/
 ENV/
-env/
-.env
-.env.*
-!.env.example
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+celerybeat-schedule
+celerybeat.pid
+.python-version
 
-# Node
+# -----------------------------
+# Node.js / Frontend (Vite/React)
+# -----------------------------
 node_modules/
 dist/
-.npm
+build/
 .eslintcache
+.stylelintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Project specific
+# -----------------------------
+# Agent / Temporary Files
+# -----------------------------
 .agents/
 .opencode/

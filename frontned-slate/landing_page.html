@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetIO — Meetings That Actually Mean Something</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+:root{
+  --canvas:#fff1e6;--ink:#0a0a0a;--yellow:#ffe500;--pink:#ff4f8b;
+  --lime:#c6ff3d;--blue:#0052ff;--white:#ffffff;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',sans-serif;background:var(--canvas);color:var(--ink);overflow-x:hidden;}
+
+/* ── DOT GRID ── */
+.dot-grid{background-image:radial-gradient(var(--ink) 1.5px,transparent 0);background-size:20px 20px;opacity:0.08;position:absolute;inset:0;pointer-events:none;z-index:0;}
+
+/* ════════════════════════════════
+   NAV
+════════════════════════════════ */
+nav{
+  height:64px;background:rgba(255,241,230,0.95);border-bottom:2px solid var(--ink);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 40px;position:sticky;top:0;z-index:100;
+  backdrop-filter:blur(8px);
+}
+
+/* Left: logo */
+.logo-wrap{display:flex;align-items:center;gap:14px;cursor:pointer;text-decoration:none;}
+.logo-box{
+  width:40px;height:40px;background:var(--ink);border:2px solid var(--ink);
+  box-shadow:3px 3px 0 var(--ink);display:flex;align-items:center;justify-content:center;
+}
+.logo-box i{color:#fff;font-size:20px;}
+.logo-wrap:hover .logo-box{animation:jiggle 0.5s ease-in-out infinite;}
+@keyframes jiggle{
+  0%{transform:rotate(0deg) scale(1.1);}25%{transform:rotate(-10deg) scale(1.1);}
+  75%{transform:rotate(10deg) scale(1.1);}100%{transform:rotate(0deg) scale(1.1);}
+}
+.brand{font-family:'Archivo Black',sans-serif;font-size:22px;letter-spacing:-0.05em;text-transform:uppercase;color:var(--ink);}
+
+/* Right: 3 utilities */
+.nav-right{display:flex;align-items:center;gap:16px;}
+.nav-link{
+  font-family:'Archivo Black',sans-serif;font-size:11px;text-transform:uppercase;
+  letter-spacing:0.6px;color:var(--ink);text-decoration:none;
+  padding:8px 14px;border:2px solid transparent;
+  transition:all 0.18s cubic-bezier(0.175,0.885,0.32,1.275);display:flex;align-items:center;gap:7px;
+}
+.nav-link:hover{transform:translate(-2px,-2px);border-color:var(--ink);box-shadow:4px 4px 0 var(--ink);background:var(--white);}
+.nav-cta{
+  font-family:'Archivo Black',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.6px;
+  background:var(--yellow);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);
+  color:var(--ink);padding:10px 20px;cursor:pointer;text-decoration:none;
+  transition:all 0.18s cubic-bezier(0.175,0.885,0.32,1.275);display:inline-flex;align-items:center;gap:8px;
+}
+.nav-cta:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--ink);}
+.nav-cta:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink);}
+
+/* mobile hamburger */
+.ham-btn{
+  display:none;width:42px;height:42px;background:var(--ink);border:2px solid var(--ink);
+  box-shadow:3px 3px 0 var(--ink);align-items:center;justify-content:center;
+  cursor:pointer;color:var(--canvas);transition:all 0.18s ease;
+}
+.ham-btn:hover{transform:translate(-2px,-2px);box-shadow:6px 6px 0 var(--ink);background:var(--canvas);color:var(--ink);}
+.mob-menu{
+  display:none;position:fixed;top:64px;left:0;right:0;background:var(--white);
+  border-bottom:3px solid var(--ink);padding:24px 20px;z-index:99;
+  flex-direction:column;gap:12px;
+}
+.mob-menu.open{display:flex;}
+.mob-nav-btn{
+  font-family:'Archivo Black',sans-serif;font-size:13px;text-transform:uppercase;
+  letter-spacing:0.8px;padding:14px 20px;background:var(--canvas);border:2px solid var(--ink);
+  box-shadow:4px 4px 0 var(--ink);color:var(--ink);display:flex;align-items:center;gap:12px;
+  cursor:pointer;text-decoration:none;transition:all 0.18s ease;
+}
+.mob-nav-btn:hover{transform:translate(-2px,-2px);box-shadow:7px 7px 0 var(--ink);background:var(--pink);color:#fff;}
+.mob-cta{background:var(--yellow);}
+
+/* ════════════════════════════════
+   HERO
+════════════════════════════════ */
+.hero{
+  position:relative;padding:100px 40px 80px;text-align:center;
+  overflow:hidden;min-height:90vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:40px;
+}
+.hero-kicker{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1.5px solid var(--ink);padding:6px 14px;background:var(--white);
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+  box-shadow:3px 3px 0 var(--ink);
+}
+.kicker-dot{width:8px;height:8px;background:var(--lime);border-radius:50%;border:1px solid var(--ink);animation:pulse 2s ease infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(198,255,61,0.7);}50%{box-shadow:0 0 0 6px rgba(198,255,61,0);}}
+
+.hero-headline{
+  font-family:'Archivo Black',sans-serif;font-size:clamp(3.5rem,9vw,7.5rem);
+  line-height:0.9;letter-spacing:-2.3px;text-transform:uppercase;
+  max-width:1100px;
+}
+.hero-headline em{font-style:normal;color:var(--pink);}
+.hero-sub{font-family:'Inter',sans-serif;font-size:16px;line-height:1.6;max-width:520px;color:rgba(10,10,10,0.7);}
+.hero-btns{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;}
+.btn-primary{
+  font-family:'Archivo Black',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;
+  background:var(--yellow);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);
+  color:var(--ink);padding:14px 28px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;
+  transition:all 0.18s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+.btn-primary:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--ink);}
+.btn-primary:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink);}
+.btn-ghost{
+  font-family:'Archivo Black',sans-serif;font-size:12px;text-transform:uppercase;letter-spacing:0.6px;
+  background:transparent;border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);
+  color:var(--ink);padding:14px 28px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;
+  transition:all 0.18s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+.btn-ghost:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--ink);background:var(--white);}
+.btn-ghost:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink);}
+
+/* ── LIVE DEMO WINDOW ── */
+.demo-window{
+  width:100%;max-width:880px;border:3px solid var(--ink);box-shadow:8px 8px 0 var(--ink);
+  background:var(--white);position:relative;z-index:1;
+}
+.window-bar{
+  height:36px;background:var(--ink);display:flex;align-items:center;padding:0 14px;gap:8px;
+  border-bottom:2px solid var(--ink);
+}
+.dot{width:12px;height:12px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.3);}
+.dot-r{background:var(--pink);}
+.dot-y{background:var(--yellow);}
+.dot-g{background:var(--lime);}
+.window-title{font-family:'Archivo Black',sans-serif;font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:1px;margin-left:auto;margin-right:auto;}
+.window-body{display:grid;grid-template-columns:1fr 280px;min-height:340px;}
+.window-main{padding:20px;border-right:2px solid var(--ink);display:flex;flex-direction:column;gap:12px;}
+.meeting-header{display:flex;align-items:center;justify-content:space-between;}
+.meeting-title{font-family:'Archivo Black',sans-serif;font-size:14px;}
+.participant-count{
+  display:flex;align-items:center;gap:6px;background:var(--ink);
+  color:var(--lime);font-family:'Archivo Black',sans-serif;font-size:11px;
+  padding:4px 10px;letter-spacing:0.5px;
+}
+.p-dot{width:7px;height:7px;background:var(--lime);border-radius:50%;animation:pulse 1.5s ease infinite;}
+.video-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex:1;}
+.vid-cell{
+  background:var(--ink);border:2px solid var(--ink);aspect-ratio:16/9;
+  display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;
+}
+.vid-cell.active{border-color:var(--lime);box-shadow:0 0 0 2px var(--lime);}
+.vid-avatar{
+  width:32px;height:32px;background:var(--yellow);border:2px solid var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Archivo Black',sans-serif;font-size:11px;color:var(--ink);
+}
+.vid-label{
+  position:absolute;bottom:4px;left:4px;background:var(--ink);
+  font-family:'Inter',sans-serif;font-size:9px;font-weight:600;color:rgba(255,255,255,0.8);
+  padding:1px 5px;letter-spacing:0.3px;
+}
+.summary-box{border-top:2px solid var(--ink);margin-top:4px;padding-top:10px;}
+.summary-label{
+  font-family:'Archivo Black',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  color:rgba(10,10,10,0.5);margin-bottom:6px;display:flex;align-items:center;gap:6px;
+}
+.ai-badge{background:var(--yellow);border:1px solid var(--ink);padding:1px 6px;font-size:9px;letter-spacing:0.5px;}
+.summary-text{font-family:'Inter',sans-serif;font-size:12px;line-height:1.55;color:rgba(10,10,10,0.8);min-height:36px;}
+.cursor{display:inline-block;width:2px;height:13px;background:var(--pink);vertical-align:middle;animation:blink 0.8s step-end infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0;}}
+
+/* Transcript panel */
+.transcript-panel{display:flex;flex-direction:column;}
+.panel-header{
+  padding:10px 14px;border-bottom:2px solid var(--ink);
+  font-family:'Archivo Black',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  background:var(--yellow);display:flex;align-items:center;justify-content:space-between;
+}
+.live-pill{
+  background:var(--pink);color:#fff;font-family:'Inter',sans-serif;font-size:9px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.5px;padding:2px 7px;border:1px solid var(--ink);
+  animation:livePulse 2s ease infinite;
+}
+@keyframes livePulse{0%,100%{opacity:1;}50%{opacity:0.6;}}
+.transcript-feed{flex:1;overflow:hidden;padding:10px 14px;display:flex;flex-direction:column;gap:10px;position:relative;}
+.t-entry{display:flex;flex-direction:column;gap:2px;animation:fadeUp 0.4s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.t-speaker{font-family:'Archivo Black',sans-serif;font-size:10px;letter-spacing:0.5px;text-transform:uppercase;}
+.t-speaker.s1{color:var(--pink);}
+.t-speaker.s2{color:var(--blue);}
+.t-speaker.s3{color:rgba(10,10,10,0.5);}
+.t-text{font-family:'Inter',sans-serif;font-size:11px;line-height:1.45;color:rgba(10,10,10,0.75);}
+
+/* ════════════════════════════════
+   BENTO SECTION
+════════════════════════════════ */
+.bento-section{padding:80px 40px;position:relative;overflow:hidden;}
+.section-kicker{
+  font-family:'Archivo Black',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;
+  color:rgba(10,10,10,0.5);margin-bottom:12px;
+}
+.section-title{font-family:'Archivo Black',sans-serif;font-size:clamp(2rem,5vw,3.2rem);letter-spacing:-0.8px;margin-bottom:40px;line-height:1.1;}
+.bento-grid{
+  display:grid;grid-template-columns:repeat(12,1fr);grid-template-rows:auto;
+  gap:16px;max-width:1200px;margin:0 auto;
+}
+
+/* Cards */
+.bento-card{
+  background:var(--white);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);
+  padding:28px;position:relative;overflow:hidden;
+  transition:transform 0.18s ease,box-shadow 0.18s ease;
+}
+.bento-card:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0 var(--ink);}
+.card-tag{
+  display:inline-flex;align-items:center;gap:6px;
+  border:1.5px solid var(--ink);padding:3px 10px;margin-bottom:16px;
+  font-family:'Inter',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+}
+.card-title{font-family:'Archivo Black',sans-serif;font-size:20px;letter-spacing:-0.3px;margin-bottom:8px;}
+.card-body{font-family:'Inter',sans-serif;font-size:13px;line-height:1.6;color:rgba(10,10,10,0.65);}
+
+/* Card 1 — Speed (col 1-7) */
+.card-speed{grid-column:1/8;grid-row:1;}
+.card-speed .card-tag{background:var(--yellow);}
+/* Latency visualizer */
+.latency-viz{margin-top:20px;display:flex;flex-direction:column;gap:8px;}
+.lat-row{display:flex;align-items:center;gap:10px;}
+.lat-label{font-family:'Inter',sans-serif;font-size:11px;font-weight:600;min-width:60px;color:rgba(10,10,10,0.6);}
+.lat-bar-wrap{flex:1;height:10px;background:rgba(10,10,10,0.07);border:1px solid var(--ink);position:relative;overflow:hidden;}
+.lat-bar{height:100%;background:var(--yellow);border-right:2px solid var(--ink);}
+.lat-bar.good{background:var(--lime);}
+.lat-val{font-family:'Archivo Black',sans-serif;font-size:11px;min-width:48px;text-align:right;}
+.ping-row{
+  display:flex;align-items:center;gap:8px;margin-top:4px;
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:600;color:rgba(10,10,10,0.5);
+}
+.ping-dot{width:8px;height:8px;background:var(--lime);border-radius:50%;border:1px solid var(--ink);animation:pulse 1.2s ease infinite;}
+
+/* Card 2 — Intelligence (col 8-12) */
+.card-intel{grid-column:8/13;grid-row:1;}
+.card-intel .card-tag{background:var(--pink);color:#fff;border-color:var(--ink);}
+/* Pipeline viz */
+.pipeline{margin-top:20px;display:flex;flex-direction:column;gap:6px;}
+.pipe-step{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border:2px solid var(--ink);background:var(--canvas);
+  font-family:'Inter',sans-serif;font-size:12px;font-weight:600;
+}
+.pipe-icon{
+  width:28px;height:28px;background:var(--ink);display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:13px;flex-shrink:0;
+}
+.pipe-arrow{text-align:center;font-family:'Archivo Black',sans-serif;font-size:14px;color:rgba(10,10,10,0.3);}
+
+/* Card 3 — Security (col 1-5) */
+.card-security{grid-column:1/6;grid-row:2;}
+.card-security .card-tag{background:var(--canvas);}
+.lock-anim{
+  font-size:52px;margin:16px 0 8px;display:inline-block;cursor:pointer;
+  transition:transform 0.2s ease;user-select:none;
+}
+.lock-anim:hover{animation:lockShake 0.4s ease;}
+@keyframes lockShake{
+  0%,100%{transform:rotate(0);}20%{transform:rotate(-12deg);}
+  40%{transform:rotate(10deg);}60%{transform:rotate(-8deg);}80%{transform:rotate(6deg);}
+}
+.enc-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+.enc-pill{
+  border:1.5px solid var(--ink);padding:3px 10px;
+  font-family:'Inter',sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
+  box-shadow:2px 2px 0 var(--ink);
+}
+
+/* Card 4 — Stats (col 6-12) */
+.card-stats{grid-column:6/13;grid-row:2;background:var(--ink);color:var(--yellow);}
+.card-stats:hover{box-shadow:8px 8px 0 var(--yellow);}
+.card-stats .card-title{color:var(--yellow);}
+.card-stats .card-body{color:rgba(255,229,0,0.55);}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px;}
+.stat-item{border:1.5px solid rgba(255,229,0,0.25);padding:14px;}
+.stat-num{font-family:'Archivo Black',sans-serif;font-size:28px;color:var(--yellow);}
+.stat-lbl{font-family:'Inter',sans-serif;font-size:11px;color:rgba(255,229,0,0.5);margin-top:2px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;}
+
+/* ════════════════════════════════
+   FOOTER
+════════════════════════════════ */
+footer{
+  background:var(--ink);border-top:3px solid var(--ink);
+  padding:0 40px;height:56px;display:flex;align-items:center;justify-content:space-between;
+}
+.footer-copy{font-family:'Archivo Black',sans-serif;font-size:11px;color:rgba(255,229,0,0.7);letter-spacing:0.5px;}
+.footer-status{display:flex;align-items:center;gap:8px;}
+.status-dot{width:8px;height:8px;background:var(--lime);border-radius:50%;animation:pulse 2s ease infinite;}
+.footer-status-txt{font-family:'Archivo Black',sans-serif;font-size:10px;color:var(--lime);letter-spacing:1px;text-transform:uppercase;}
+.footer-links{display:flex;align-items:center;gap:20px;}
+.footer-link{
+  font-family:'Archivo Black',sans-serif;font-size:10px;color:rgba(255,255,255,0.4);
+  text-decoration:none;letter-spacing:0.6px;text-transform:uppercase;
+  transition:color 0.15s ease;
+}
+.footer-link:hover{color:var(--yellow);}
+
+/* ════════════════════════════════
+   RESPONSIVE
+════════════════════════════════ */
+@media(max-width:1024px){
+  .bento-card{padding:20px;}
+  .card-speed{grid-column:1/8;}
+  .card-intel{grid-column:8/13;}
+  .card-security{grid-column:1/7;}
+  .card-stats{grid-column:7/13;}
+}
+@media(max-width:768px){
+  nav{padding:0 20px;}
+  .nav-right{display:none;}
+  .ham-btn{display:flex;}
+  .hero{padding:60px 20px 48px;gap:28px;}
+  .window-body{grid-template-columns:1fr;}
+  .transcript-panel{border-top:2px solid var(--ink);border-left:none;max-height:180px;}
+  .bento-section{padding:48px 20px;}
+  .bento-grid{grid-template-columns:1fr;gap:12px;}
+  .card-speed,.card-intel,.card-security,.card-stats{grid-column:1/-1;grid-row:auto;}
+  footer{flex-direction:column;height:auto;padding:16px 20px;gap:10px;text-align:center;}
+  .footer-links{gap:16px;}
+}
+@media(max-width:480px){
+  .hero-headline{letter-spacing:-1px;}
+  .video-grid{grid-template-columns:repeat(2,1fr);}
+  .vid-cell:last-child{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ NAV ══════════════ -->
+<nav>
+  <!-- LEFT: Logo + Brand -->
+  <a class="logo-wrap" href="#">
+    <div class="logo-box"><i class="fa-solid fa-video"></i></div>
+    <span class="brand">MEETIO</span>
+  </a>
+
+  <!-- RIGHT: 3 Utilities -->
+  <div class="nav-right">
+    <a class="nav-link" href="/docs">
+      <i class="fa-solid fa-book"></i> Documentation
+    </a>
+    <a class="nav-link" href="https://github.com" target="_blank" rel="noopener">
+      <i class="fa-brands fa-github"></i> Repository
+    </a>
+    <a class="nav-cta" href="/signup">
+      GET STARTED <i class="fa-solid fa-arrow-right"></i>
+    </a>
+  </div>
+
+  <!-- MOBILE: Hamburger -->
+  <button class="ham-btn" id="hamBtn" onclick="toggleMob()" aria-label="Menu">
+    <i class="fa-solid fa-bars"></i>
+  </button>
+</nav>
+
+<!-- Mobile Menu -->
+<div class="mob-menu" id="mobMenu">
+  <a class="mob-nav-btn" href="/docs"><i class="fa-solid fa-book"></i> Documentation</a>
+  <a class="mob-nav-btn" href="https://github.com" target="_blank"><i class="fa-brands fa-github"></i> Repository</a>
+  <a class="mob-nav-btn mob-cta" href="/signup"><i class="fa-solid fa-arrow-right"></i> Get Started</a>
+</div>
+
+<!-- ══════════════ HERO ══════════════ -->
+<section class="hero">
+  <div class="dot-grid"></div>
+
+  <div class="hero-kicker">
+    <span class="kicker-dot"></span>
+    LIVE BETA · 2,400+ TEAMS ACTIVE
+  </div>
+
+  <h1 class="hero-headline">
+    MEETINGS THAT<br><em>ACTUALLY</em><br>MEAN SOMETHING.
+  </h1>
+
+  <p class="hero-sub">
+    Real-time transcription, AI-powered recaps, and sub-50ms video latency — so every meeting becomes a permanent record, not a fading memory.
+  </p>
+
+  <div class="hero-btns">
+    <a class="btn-primary" href="/signup">START FOR FREE <i class="fa-solid fa-arrow-right"></i></a>
+    <a class="btn-ghost" href="#features">SEE HOW IT WORKS</a>
+  </div>
+
+  <!-- Live Demo Window -->
+  <div class="demo-window">
+    <div class="window-bar">
+      <span class="dot dot-r"></span>
+      <span class="dot dot-y"></span>
+      <span class="dot dot-g"></span>
+      <span class="window-title">MEETIO · LIVE SESSION · Q3 ROADMAP</span>
+    </div>
+    <div class="window-body">
+      <!-- Main video area -->
+      <div class="window-main">
+        <div class="meeting-header">
+          <span class="meeting-title">Q3 Product Roadmap</span>
+          <div class="participant-count">
+            <span class="p-dot"></span>
+            <span id="pcount">54</span> ONLINE
+          </div>
+        </div>
+        <div class="video-grid" id="vidGrid">
+          <div class="vid-cell active">
+            <div class="vid-avatar">AK</div>
+            <span class="vid-label">ALICE K · HOST</span>
+          </div>
+          <div class="vid-cell">
+            <div class="vid-avatar" style="background:var(--pink);color:#fff">JM</div>
+            <span class="vid-label">JAMES M</span>
+          </div>
+          <div class="vid-cell">
+            <div class="vid-avatar" style="background:var(--blue);color:#fff">SR</div>
+            <span class="vid-label">SARA R</span>
+          </div>
+          <div class="vid-cell">
+            <div class="vid-avatar" style="background:var(--lime);color:var(--ink)">TN</div>
+            <span class="vid-label">TOM N</span>
+          </div>
+          <div class="vid-cell">
+            <div class="vid-avatar" style="background:#7c3aed;color:#fff">PP</div>
+            <span class="vid-label">PRIYA P</span>
+          </div>
+          <div class="vid-cell" style="background:rgba(10,10,10,0.4);display:flex;align-items:center;justify-content:center;">
+            <span style="font-family:'Archivo Black',sans-serif;font-size:11px;color:rgba(255,255,255,0.5);">+49 MORE</span>
+          </div>
+        </div>
+        <!-- Summary box -->
+        <div class="summary-box">
+          <div class="summary-label">
+            <span class="ai-badge">AI RECAP</span>
+            SMART SUMMARY · LIVE
+          </div>
+          <div class="summary-text" id="summaryText"></div>
+        </div>
+      </div>
+
+      <!-- Transcript panel -->
+      <div class="transcript-panel">
+        <div class="panel-header">
+          LIVE TRANSCRIPT
+          <span class="live-pill">● LIVE</span>
+        </div>
+        <div class="transcript-feed" id="txFeed"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ BENTO FEATURES ══════════════ -->
+<section class="bento-section" id="features">
+  <div style="max-width:1200px;margin:0 auto;">
+    <div class="section-kicker">WHY MEETIO</div>
+    <h2 class="section-title">BUILT DIFFERENT.<br>BY DESIGN.</h2>
+  </div>
+
+  <div class="bento-grid">
+
+    <!-- Card 1: Speed -->
+    <div class="bento-card card-speed">
+      <div class="card-tag">⚡ ULTRA-LOW LATENCY</div>
+      <div class="card-title">Video that feels instant.</div>
+      <p class="card-body">WebRTC with our edge relay network delivers sub-50ms end-to-end latency globally. No buffering. No awkward gaps. Just conversation.</p>
+      <div class="latency-viz">
+        <div class="lat-row">
+          <span class="lat-label">MEETIO</span>
+          <div class="lat-bar-wrap"><div class="lat-bar good" style="width:14%"></div></div>
+          <span class="lat-val">42ms</span>
+        </div>
+        <div class="lat-row">
+          <span class="lat-label">Zoom</span>
+          <div class="lat-bar-wrap"><div class="lat-bar" style="width:55%;background:rgba(10,10,10,0.15)"></div></div>
+          <span class="lat-val">160ms</span>
+        </div>
+        <div class="lat-row">
+          <span class="lat-label">Teams</span>
+          <div class="lat-bar-wrap"><div class="lat-bar" style="width:72%;background:rgba(10,10,10,0.12)"></div></div>
+          <span class="lat-val">210ms</span>
+        </div>
+        <div class="ping-row">
+          <span class="ping-dot"></span>
+          EDGE NODE ACTIVE · NYC-01 · 38ms
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Intelligence -->
+    <div class="bento-card card-intel">
+      <div class="card-tag">🧠 AI INTELLIGENCE</div>
+      <div class="card-title">Every word. Captured.</div>
+      <p class="card-body">Deepgram Nova-2 STT + GPT-4o recap pipeline turns every call into searchable knowledge — auto-tagged, summarised, and ready to share.</p>
+      <div class="pipeline">
+        <div class="pipe-step">
+          <div class="pipe-icon"><i class="fa-solid fa-microphone"></i></div>
+          RAW AUDIO STREAM
+        </div>
+        <div class="pipe-arrow">↓</div>
+        <div class="pipe-step" style="border-color:var(--pink);">
+          <div class="pipe-icon" style="background:var(--pink);"><i class="fa-solid fa-wave-square"></i></div>
+          DEEPGRAM STT · NOVA-2
+        </div>
+        <div class="pipe-arrow">↓</div>
+        <div class="pipe-step" style="border-color:var(--blue);">
+          <div class="pipe-icon" style="background:var(--blue);"><i class="fa-solid fa-robot"></i></div>
+          GPT-4o RECAP + TAGS
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 3: Security -->
+    <div class="bento-card card-security">
+      <div class="card-tag">🔒 ZERO-TRUST SECURITY</div>
+      <div class="card-title">End-to-end. No exceptions.</div>
+      <p class="card-body">AES-256 + SRTP encryption on every frame. Your conversations never transit unencrypted infrastructure — not even ours.</p>
+      <div class="lock-anim" id="lockIcon" title="Click me">🔒</div>
+      <div class="enc-pills">
+        <span class="enc-pill" style="background:var(--lime);">AES-256</span>
+        <span class="enc-pill" style="background:var(--yellow);">SRTP</span>
+        <span class="enc-pill">ZERO-KNOWLEDGE</span>
+        <span class="enc-pill" style="background:var(--canvas);">SOC 2 TYPE II</span>
+      </div>
+    </div>
+
+    <!-- Card 4: Stats -->
+    <div class="bento-card card-stats">
+      <div class="card-tag" style="border-color:rgba(255,229,0,0.3);color:var(--yellow);">📊 BY THE NUMBERS</div>
+      <div class="card-title">Scale without limits.</div>
+      <p class="card-body">Production-grade infrastructure trusted by teams from 2 to 2,000.</p>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-num">99.97%</div>
+          <div class="stat-lbl">Uptime SLA</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">&lt;50ms</div>
+          <div class="stat-lbl">Avg Latency</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">2,400+</div>
+          <div class="stat-lbl">Active Teams</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">1M+</div>
+          <div class="stat-lbl">Hrs Transcribed</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<footer>
+  <span class="footer-copy">© 2026 MEETIO_CORP</span>
+  <div class="footer-status">
+    <span class="status-dot"></span>
+    <span class="footer-status-txt">STATUS :: ALL_SYSTEMS_NOMINAL</span>
+  </div>
+  <div class="footer-links">
+    <a class="footer-link" href="/privacy">Privacy</a>
+    <a class="footer-link" href="/terms">Terms</a>
+    <a class="footer-link" href="/contact">Contact</a>
+  </div>
+</footer>
+
+<script>
+/* ── Mobile menu ── */
+function toggleMob(){
+  const m=document.getElementById('mobMenu');
+  m.classList.toggle('open');
+  document.body.style.overflow=m.classList.contains('open')?'hidden':'';
+}
+document.addEventListener('click',e=>{
+  const m=document.getElementById('mobMenu');
+  const b=document.getElementById('hamBtn');
+  if(m.classList.contains('open')&&!m.contains(e.target)&&!b.contains(e.target)) toggleMob();
+});
+
+/* ── Lock icon shake ── */
+document.getElementById('lockIcon').addEventListener('click',function(){
+  this.style.animation='none';
+  void this.offsetWidth;
+  this.style.animation='lockShake 0.4s ease';
+});
+
+/* ── Participant counter drift ── */
+let pcount=54;
+setInterval(()=>{
+  pcount+=Math.random()<0.5?1:-1;
+  pcount=Math.max(50,Math.min(62,pcount));
+  document.getElementById('pcount').textContent=pcount;
+},3000);
+
+/* ── Live transcript feed ── */
+const speakers=[
+  {name:'ALICE K',cls:'s1'},{name:'JAMES M',cls:'s2'},{name:'SARA R',cls:'s3'}
+];
+const lines=[
+  {s:0,t:"So the Q3 release is locked for August 15th, that's confirmed from engineering."},
+  {s:1,t:"We still need sign-off on the latency benchmarks before we go public with that."},
+  {s:2,t:"I can have the benchmark report ready by Thursday, needs one more test run."},
+  {s:0,t:"Perfect. Let's schedule the stakeholder review for Friday then."},
+  {s:1,t:"The Deepgram integration is performing better than spec — 97.3% accuracy on technical terms."},
+  {s:2,t:"Marketing will need at least 48 hours to prep the launch assets after approval."},
+  {s:0,t:"Noted. I'll block time with design tomorrow morning, first thing."},
+  {s:1,t:"Should we also address the EU data residency question before launch?"},
+  {s:2,t:"Legal confirmed we're compliant, the docs are already in the shared folder."},
+  {s:0,t:"Great. That closes our blockers list. Let's move to the roadmap priorities."},
+];
+let txIdx=0;
+const feed=document.getElementById('txFeed');
+function addLine(){
+  const l=lines[txIdx%lines.length];
+  const sp=speakers[l.s];
+  const el=document.createElement('div');
+  el.className='t-entry';
+  el.innerHTML=`<span class="t-speaker ${sp.cls}">${sp.name}</span><span class="t-text">${l.t}</span>`;
+  feed.appendChild(el);
+  if(feed.children.length>5) feed.removeChild(feed.firstChild);
+  txIdx++;
+}
+addLine();
+setInterval(addLine,3200);
+
+/* ── AI Summary typewriter ── */
+const summaries=[
+  "Q3 release confirmed for Aug 15. Benchmark report due Thursday. Stakeholder review scheduled for Friday.",
+  "Deepgram STT accuracy at 97.3%. Marketing assets need 48hr lead time post-approval.",
+  "EU data residency compliance confirmed by Legal. Design review blocked for tomorrow AM.",
+  "All blockers resolved. Team aligned on launch timeline. Moving to roadmap prioritization.",
+];
+let sumIdx=0;
+const sumEl=document.getElementById('summaryText');
+function typewriteSummary(text,i=0){
+  if(i===0){sumEl.innerHTML='<span class="cursor"></span>';}
+  if(i<text.length){
+    sumEl.innerHTML=text.slice(0,i+1)+'<span class="cursor"></span>';
+    setTimeout(()=>typewriteSummary(text,i+1),28);
+  } else {
+    setTimeout(()=>{
+      sumIdx=(sumIdx+1)%summaries.length;
+      typewriteSummary(summaries[sumIdx]);
+    },4000);
+  }
+}
+typewriteSummary(summaries[0]);
+</script>
+</body>
+</html>

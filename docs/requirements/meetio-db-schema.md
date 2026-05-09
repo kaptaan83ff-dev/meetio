@@ -33,18 +33,22 @@
 
 ```python
 {
-  "_id": "usr_abc123",               # str, prefixed UUID
+  "_id": "usr_abc123",   # str, prefixed UUID.
+                        # FastAPI Users defaults to plain UUID4. To use prefixed UUIDs 
+                        # (usr_abc123), configure a custom ID generator in the 
+                        # UserDatabase motor adapter.
   "schema_version": 1,
 
   # Identity
   "email": "priya@example.com",      # str, unique, lowercase
-  "email_verified": True,            # bool
+  "is_verified": True,               # bool — renamed from email_verified for fastapi-users
   "display_name": "Priya Sharma",    # str
   "avatar_url": None,                # str | None — R2 URL or null
   "avatar_type": "upload",           # "upload" | "google" | "default" | None
 
   # Auth
-  "password_hash": "...",            # str | None — null for Google-only accounts
+  "hashed_password": "...",   # str | None — null for Google-only accounts.
+                             # Field name must be hashed_password — FastAPI Users requires this exact name.
   "providers": ["email", "google"],  # list[str] — "email" | "google"
   "google_id": "10234...",           # str | None
 
@@ -54,6 +58,7 @@
 
   # State
   "is_active": True,                 # bool — False = soft-deleted
+  "is_superuser": False,   # bool — required by FastAPI Users, always False for regular users
   "deletion_requested_at": None,     # datetime | None
   "deletion_scheduled_at": None,     # datetime | None — requested_at + 30 days
 
@@ -86,6 +91,11 @@
 ---
 
 ## 2. `sessions`
+
+> This collection is required because MeetIO uses DatabaseStrategy (not JWTStrategy).
+> DatabaseStrategy stores tokens here and supports remote revocation via 
+> DELETE /settings/sessions/{id}. If you switch to JWTStrategy, this collection 
+> is unused and remote revocation is impossible.
 
 One document per active refresh token. Enables session listing + revocation from Settings.
 

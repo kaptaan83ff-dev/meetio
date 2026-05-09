@@ -68,6 +68,7 @@ This document describes **what MeetIO does and why**, not how the code works (th
 | State management           | Zustand                        | Keeps UI state in sync                          |
 | Styling                    | Tailwind CSS                   | Handles visual design                           |
 | Backend (server)           | Python 3.12, FastAPI           | Handles all data, logic, and security           |
+| Auth & Security            | FastAPI Users                  | Industry-standard library-managed auth          |
 | Database                   | MongoDB                        | Stores all app data permanently                 |
 | Cache / Message Broker     | Redis                          | Speeds up reads; routes background jobs         |
 | Background Jobs            | Celery + Celery Beat           | Runs tasks asynchronously (AI, emails, cleanup) |
@@ -1097,7 +1098,7 @@ User clicks "Sign in with Google"
 → MeetIO checks if this email exists in the database
 
 Email does NOT exist → create new account → log in
-Email exists (email/password account) → send OTP → verify → link Google → log in
+Email exists (email/password account) → send verification link → verify → link Google → log in
 Email exists (Google account) → log in directly
 ```
 
@@ -1106,8 +1107,8 @@ Email exists (Google account) → log in directly
 ```
 Registration:
 User enters email + password + name
-→ 6-digit OTP sent to their email
-→ User enters OTP → account created → logged in
+→ Verification link sent to their email
+→ User clicks link → account verified → logged in
 
 Sign in:
 User enters email + password → verified → logged in
@@ -1154,8 +1155,8 @@ User enters email + password → verified → logged in
 | Video tokens        | Generated server-side only — never in the browser              |
 | Guest rate limiting | Rate limiting on guest join endpoints to prevent abuse         |
 | CORS                | Strict origin rules — only the MeetIO domain is allowed        |
-| Sessions            | Secure cookies that rotate on use                              |
-| OTP                 | Max 5 attempts per OTP session before lockout                  |
+| Sessions            | Secure cookies managed by FastAPI Users                        |
+| Verification        | Token-based link flow for registration and password reset      |
 
 ---
 
@@ -1165,14 +1166,9 @@ User enters email + password → verified → logged in
 
 ### 8.1 Token Configuration
 
-MeetIO uses two types of tokens stored in secure cookies:
+MeetIO uses secure JWT tokens stored in HttpOnly cookies managed by **FastAPI Users**.
 
-| Token Type    | How Long It Lasts | Purpose                                                 |
-| ------------- | ----------------- | ------------------------------------------------------- |
-| Access Token  | 4 hours           | Proves the user is authenticated for API calls          |
-| Refresh Token | 15 days           | Used to get a new access token when the old one expires |
-
-**Storage:** Both tokens are stored in HttpOnly cookies — they are invisible to JavaScript and cannot be stolen by browser scripts.
+**Storage:** Both tokens (if using dual-token strategy) or the unified auth cookie are stored in HttpOnly cookies — they are invisible to JavaScript and cannot be stolen by browser scripts.
 
 ### 8.2 Concurrent Sessions Policy
 
@@ -1241,12 +1237,15 @@ Dashboard
 
 ### 9.3 API Endpoints
 
-| Endpoint                     | Method | What It Returns                         |
-| ---------------------------- | ------ | --------------------------------------- |
-| `/v1/dashboard/recaps`       | GET    | Last 5 meeting recaps with status       |
-| `/v1/dashboard/action-items` | GET    | User's 10 most urgent open action items |
-| `/v1/dashboard/stats`        | GET    | Meeting count and time stats            |
-| `/v1/dashboard/upcoming`     | GET    | Next 5 upcoming scheduled meetings      |
+| Endpoint                       | Method | What It Returns                        |
+| ------------------------------ | ------ | -------------------------------------- |
+| `/v1/dashboard/recaps`         | GET    | Last 5 meeting recaps with status      |
+| `/v1/dashboard/action-items`   | GET    | User's 5 most urgent open action items |
+| `/v1/dashboard/stats`          | GET    | Meeting count and time stats           |
+| `/v1/dashboard/upcoming`       | GET    | Next upcoming scheduled meetings       |
+| `/v1/dashboard/recent-meeting` | GET    | Last meeting recaps with status        |
+
+and upcoming meetings adn recent -meeting are switrch using toggle and ui collosal animation effect.
 
 ### 9.4 Real-Time Updates
 

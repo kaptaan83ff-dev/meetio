@@ -1,12 +1,9 @@
 # Task Breakdown: Authentication
 
-**Feature:** #2 from MVP Roadmap
-**Estimated Time:** 14–18 hours total
-**Priority:** SECOND — must exist before any other feature
-**Status:** [ ] In-Progress
-
-> [!IMPORTANT]
-> **New Rule:** New tasks and subtasks can be added if they are compulsory for security, stability, or architectural integrity.
+**Feature:** Feature 2 from MVP Roadmap
+**Estimated Time:** 12–16 hours
+**Priority:** SECOND — must be complete before Session Management, Profile, and all meeting features
+**Status:** [ ] Not started
 
 ---
 
@@ -14,209 +11,212 @@
 
 ---
 
-### Task 2.1: Backend — Users Model & Auth Schemas [MVP]
+### Task 2.1: Backend - FastAPI Users Core Configuration [MVP]
 
-- [ ] Create `backend/app/models/user.py`: `UserDocument` TypedDict with all fields from `meetio-db-schema.md#1-users` — `_id`, `email`, `email_verified`, `display_name`, `avatar_url`, `password_hash`, `providers`, `google_id`, `totp_enabled`, `totp_secret`, `is_active`, `deletion_requested_at`, `deletion_scheduled_at`, `timezone`, `language`, `theme`, `email_notifications`, `created_at`, `updated_at`, `last_seen_at`, `schema_version`
-- [ ] Create `backend/app/models/session.py`: `SessionDocument` TypedDict with `_id`, `user_id`, `refresh_token_hash`, `device_info`, `is_revoked`, `expires_at`, `created_at`, `last_used_at`, `schema_version`
-- [ ] Create `backend/app/schemas/auth.py` Pydantic models: `SignupRequest(email: EmailStr, password: str, display_name: str)` with `@field_validator("password")` enforcing **min 8 chars, 1 uppercase, 1 number, 1 special character** — raise `ValueError` on failure
-- [ ] Create `SigninRequest(email: EmailStr, password: str)`, `OTPVerifyRequest(otp_session_id: str, code: str)`, `PasswordResetRequest(otp_session_id: str, code: str, new_password: str)`, `TOTPVerifyRequest(totp_session_id: str, code: str)`
-- [ ] Create response schemas: `UserResponse(id, display_name, email, avatar_url, providers)`, `SigninResponse` (union: `UserResponse` OR `{requires_2fa: bool, totp_session_id: str}`), `TokenRefreshResponse`
-- [ ] Write unit test: `SignupRequest` with weak password (no uppercase) raises `ValidationError`, strong password passes
-- 📐 Schema: `meetio-db-schema.md#1-users`
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
-
----
-
-### Task 2.2: Backend — Auth Repository [MVP]
-
-- [ ] Create `backend/app/repositories/user_repo.py`: `get_by_email(email: str) -> UserDocument | None` — query `users` collection, return None if not found
-- [ ] Add `create_user(data: dict) -> str` — insert document, return inserted `_id` as string
-- [ ] Add `update_user(user_id: str, update: dict)` — `$set` update, invalidate `user:profile:{user_id}` Redis cache key after write
-- [ ] Create `backend/app/repositories/session_repo.py`: `create_session(user_id, refresh_token_hash, device_info, expires_at) -> str`, `get_by_token_hash(hash: str) -> SessionDocument | None`, `revoke_session(session_id: str)`, `revoke_all_sessions(user_id: str)`, `get_active_sessions(user_id: str) -> list`
-- [ ] Add `mark_last_used(session_id: str)` — update `last_used_at` on every successful token refresh
-- [ ] Write integration test: `create_user()` → `get_by_email()` → returns same document, `create_session()` → `revoke_session()` → `get_by_token_hash()` returns None
-- 📐 Schema: `meetio-db-schema.md#2-sessions`
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
+- [ ] Create `backend/app/models/user.py`: define `User` base class extending `fastapi_users.models.BaseUser[str]` with custom fields: `display_name: str`, `avatar_url: Optional[str] = None`, `avatar_type: Optional[str] = None`, `providers: List[str] = []`, `google_id: Optional[str] = None`, `totp_enabled: bool = False`, `totp_secret: Optional[str] = None`, `timezone: str = "UTC"`, `language: str = "en"`, `theme: str = "system"`, `email_notifications: dict`, `deletion_requested_at: Optional[datetime] = None`, `deletion_scheduled_at: Optional[datetime] = None`, `schema_version: int = 1`
+- [ ] Define `UserCreate(BaseUserCreate)` schema adding `display_name: str` as a required field — FastAPI Users validates `email` and `password` by default; `display_name` must be added explicitly to the create schema
+- [ ] Define `UserUpdate(BaseUserUpdate)` schema with optional `display_name`, `avatar_url`, `timezone`, `language`, `theme`, `email_notifications` — used by `PUT /profile` and `PUT /settings`
+- [ ] Configure Motor adapter in `backend/app/db.py`: `user_db = BeanieUserDatabase(User)`, expose `async def get_user_db()` FastAPI dependency returning the adapter — all FastAPI Users routers require this dependency
+- [ ] Create `backend/app/auth/manager.py` with `UserManager(BeanieUserManager[User, str])`: override `on_after_register`, `on_after_forgot_password`, `on_after_reset_password` — stubs first, logic added in Tasks 2.2 and 2.6
+- [ ] Configure `CookieTransport(cookie_name="fastapiusersauth", cookie_max_age=14400, cookie_secure=True, cookie_httponly=True, cookie_samesite="lax")` and `DatabaseStrategy` backed by `sessions` collection — `DatabaseStrategy` is required for `DELETE /settings/sessions/{id}` remote revocation (Feature 3)
+- [ ] Register all FastAPI Users routers in `backend/app/routers/auth.py`: `get_auth_router(backend)`, `get_register_router(UserRead, UserCreate)`, `get_verify_router(UserRead)`, `get_reset_password_router()` — all mounted under `/auth` prefix; confirm route paths match API spec §1 exactly
+- 📐 Schema: `docs/requirements/meetio-db-schema.md#1-users`
+- Status: [ ] TODO
 
 ---
 
-### Task 2.3: Backend — Auth Service [MVP]
+### Task 2.2: Backend - Email/Password Registration [MVP]
 
-- [ ] Create `backend/app/services/auth_service.py`: `hash_password(plain: str) -> str` using `CryptContext(schemes=["argon2"])`, `verify_password(plain: str, hashed: str) -> bool`
-- [ ] Add `create_access_token(data: dict, expires_delta: timedelta) -> str` — PyJWT `jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")`; `decode_token(token: str) -> dict` — `jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])`, raise `HTTPException(401, "TOKEN_INVALID")` on `InvalidTokenError`
-- [ ] Add `generate_otp() -> str` — `secrets.randbelow(1000000)` zero-padded to 6 digits; `hash_otp(code: str) -> str` — `hashlib.sha256(code.encode()).hexdigest()`
-- [ ] Add `store_otp(email: str, purpose: str, code: str)` — store `hash_otp(code)` in Redis key `otp:{email}:{purpose}` with TTL `settings.OTP_EXPIRE_MINUTES * 60`; `verify_otp(session_id: str, code: str) -> bool` — increment `otp:attempts:{session_id}` counter, check <= 5, compare hashes, delete key on match
-- [ ] Add `set_auth_cookies(response: Response, access_token: str, refresh_token: str)` — `response.set_cookie("access_token", ..., httponly=True, secure=True, samesite="lax", max_age=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60)`, same for refresh token
-- [ ] Add `clear_auth_cookies(response: Response)` — set both cookies with `max_age=0`
-- [ ] Write unit test: `hash_password()` → `verify_password()` returns True; wrong password returns False
-- [ ] Write unit test: `create_access_token()` → `decode_token()` → correct payload; tampered token raises HTTPException 401
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
+- [ ] Implement `on_after_register(user, request)` in `UserManager`: call `send_verification_email.delay(user.id, str(token))` as a Celery async task — do not send email synchronously inside the hook; register failure must not block the response
+- [ ] Create `backend/app/tasks/notifications.py` task `send_verification_email(user_id: str, token: str)`: fetch user from DB, render Resend email with subject `"Verify your MeetIO account"` and body containing the verification link `{FRONTEND_URL}/verify?token={token}` — raise `MaxRetriesExceededError` after 3 attempts with 60s backoff
+- [ ] Configure `get_verify_router(UserRead)` endpoint `POST /auth/verify`: on valid token, FastAPI Users sets `is_verified: True` and `is_active: True` on the `users` document — verify that the Motor adapter updates the correct fields
+- [ ] Add `POST /auth/register` request validation: `display_name` must be 2–50 characters, strip leading/trailing whitespace — return `VALIDATION_ERROR` 422 if blank or too long; FastAPI Users validates email uniqueness and raises `UserAlreadyExists` which maps to `EMAIL_TAKEN` 409
+- [ ] Write integration test `tests/test_auth_register.py`: POST `/auth/register` with valid body → 201, user in DB with `is_verified: False`; POST `/auth/verify` with token → `is_verified: True`; POST `/auth/register` with duplicate email → 409 `EMAIL_TAKEN`
+- [ ] Write E2E test: full flow — register → Celery task fires → verification token received → POST `/auth/verify` → user `is_active: True` in DB
+- 📐 Schema: `docs/requirements/meetio-db-schema.md#1-users`
+- Status: [ ] TODO
 
 ---
 
-### Task 2.4: Backend — Email/Password Registration Endpoint [MVP]
+### Task 2.3: Backend - Email/Password Sign-In & 2FA Intercept [MVP]
 
-- [ ] Create `backend/app/routers/auth.py` with `router = APIRouter(prefix="/auth", tags=["Auth"])`
-- [ ] Implement `POST /auth/signup`: validate `SignupRequest`, check `user_repo.get_by_email(email)` — if exists raise `HTTPException(409, "EMAIL_TAKEN")`; hash password; store OTP in Redis; dispatch `send_email.delay(email, "Verify your MeetIO account", html)` Celery task; return `{message, otp_session_id}` with `201`
-- [ ] Implement `POST /auth/otp/verify`: validate `OTPVerifyRequest`, call `auth_service.verify_otp()` — on failure raise `HTTPException(400, "INVALID_OTP")`, after 5 failures raise `HTTPException(429, "OTP_LOCKED")`; on success call `user_repo.create_user()` with `is_active: True`, `email_verified: True`; issue JWT; call `set_auth_cookies()`; return `UserResponse` with `201`
-- [ ] Implement `POST /auth/otp/send`: look up email, dispatch OTP email, return `{otp_session_id, expires_in_seconds: 600}` — rate limit 3 req/15min per email via Redis counter `otp:rate:{email}`
-- [ ] Write integration test: `POST /auth/signup` with existing email → 409 `EMAIL_TAKEN`; with new email → 201 + OTP stored in Redis
-- [ ] Write E2E test (Playwright): fill signup form → submit → OTP page → enter OTP → redirected to `/dashboard`
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
-
----
-
-### Task 2.5: Backend — Sign-In, 2FA & Sign-Out Endpoints [MVP]
-
-- [ ] Implement `POST /auth/signin`: look up user by email (`user_repo.get_by_email`), raise `HTTPException(401, "INVALID_CREDENTIALS")` if not found or `is_active: False`; call `verify_password()`, raise 401 on mismatch; apply rate limit 10 req/15min per IP via Redis counter `signin:rate:{ip}`
-- [ ] If `users.totp_enabled: True`: store `totp_session_id` (UUID) → `totp:session:{uuid}: user_id` in Redis (10-min TTL), return `{requires_2fa: True, totp_session_id}` with no cookies — `200`
-- [ ] If `totp_enabled: False`: call `session_repo.create_session()`, SHA-256 hash the refresh token, store hash only; call `set_auth_cookies()`; update `users.last_seen_at`; write login history event to Redis sorted set; return `UserResponse` — `200`
-- [ ] Implement `POST /auth/2fa/verify`: retrieve `user_id` from `totp:session:{id}` Redis key — raise 404 if expired; verify TOTP code using `pyotp.TOTP(users.totp_secret).verify(code)` — increment failure counter, raise `OTP_LOCKED` after 5; on success create session, set cookies, return `UserResponse`
-- [ ] Implement `POST /auth/signout`: read `access_token` cookie, decode JWT to get `session_id`, call `session_repo.revoke_session()`, call `clear_auth_cookies(response)`, return `204`
-- [ ] Write unit test: PyJWT encode → decode with `algorithms=["HS256"]` allowlist — assert payload matches; assert tampered token raises 401
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
+- [ ] Configure `get_auth_router(backend)` for `POST /auth/login`: FastAPI Users OAuth2 password flow accepts `username` + `password` as form data — confirm `username` maps to `email` field (FastAPI Users default); on success, `CookieTransport` sets `fastapiusersauth` HttpOnly cookie and `DatabaseStrategy` writes a new `sessions` document
+- [ ] Add device_info capture on sign-in: override `on_after_login` in `UserManager` to write `sessions` document with `device_info: {user_agent, ip_anonymised, city, country}` — extract `User-Agent` from `request.headers`, anonymise last IP octet (`103.21.44.x`), resolve city/country via `ipinfo` best-effort (catch all exceptions, store `None` on failure)
+- [ ] Implement 2FA intercept middleware: after credential verification, check `user.totp_enabled`; if `True`, do NOT set cookies — instead return `200 {requires_2fa: true, totp_session_id: "<uuid>"}` and store `{user_id}` in Redis under key `totp_session:{totp_session_id}` with 5-minute TTL
+- [ ] Implement `POST /auth/2fa/verify` custom route (API spec §1): retrieve `totp_session_id` from Redis, call `pyotp.TOTP(user.totp_secret).verify(code, valid_window=1)` — on success, delete Redis key, set cookies; implement 5-attempt lockout: increment `totp_attempts:{totp_session_id}` counter in Redis with 300s TTL, return `OTP_LOCKED` 429 on 6th attempt
+- [ ] Write integration test: login with 2FA-enabled account → `requires_2fa: true` returned, no cookies set; POST `/auth/2fa/verify` with correct code → cookies set; POST `/auth/2fa/verify` 6 times with wrong code → 429 `OTP_LOCKED`
+- [ ] Write unit test: `on_after_login` hook correctly anonymises IP last octet (e.g., `"103.21.44.55"` → `"103.21.44.x"`); `ipinfo` failure returns `None` without raising
+- 📐 Schema: `docs/requirements/meetio-db-schema.md#2-sessions`
+- Status: [ ] TODO
 
 ---
 
-### Task 2.6: Backend — Google OAuth Endpoints [MVP]
+### Task 2.4: Backend - TOTP 2FA Setup [MVP]
 
-- [ ] Implement `GET /auth/google`: build `authorization_url` using `google-auth` library with scopes `["openid", "email", "profile"]`, embed `intent` and redirect URL in `state` param (HMAC-signed to prevent CSRF), return `302` redirect
-- [ ] Implement `GET /auth/google/callback`: exchange code for Google tokens server-side; extract `email`, `name`, `picture`, `sub` (google_id) from ID token
-- [ ] If email not in DB: call `user_repo.create_user()` with `providers: ["google"]`, `google_id: sub`, download Google avatar to R2 `avatars/{user_id}.webp` via `httpx` + `boto3`; create session; set cookies; redirect to `FRONTEND_URL/dashboard`
-- [ ] If email exists with `providers: ["email"]`: store link OTP in Redis, redirect to `FRONTEND_URL/signin?link_required=true&otp_session_id=...` — after OTP verify, append `"google"` to `providers`, store `google_id`
-- [ ] If email exists with `providers: ["google"]`: create session directly, set cookies, redirect to dashboard
-- [ ] Write integration test (mock Google): callback with new email → user created with `providers: ["google"]`; callback with existing email-only account → redirect with `link_required=true`
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
-
----
-
-### Task 2.7: Backend — Password Reset & Token Refresh Endpoints [MVP]
-
-- [ ] Implement `POST /auth/password/forgot`: call `user_repo.get_by_email(email)` — always return `200` regardless of result (prevents email enumeration); if user found: generate OTP, store in Redis, dispatch `send_email.delay()` with reset template
-- [ ] Implement `POST /auth/password/reset`: validate `PasswordResetRequest`, verify OTP; hash new password; call `user_repo.update_user({password_hash: hashed})`; call `session_repo.revoke_all_sessions(user_id)` to invalidate all devices; call `clear_auth_cookies(response)`; return `200`
-- [ ] Implement `POST /auth/refresh`: read `refresh_token` cookie only; SHA-256 hash it; call `session_repo.get_by_token_hash(hash)` — raise `TOKEN_EXPIRED` 401 + clear cookies if not found or revoked; rotate: delete old session, create new session with new refresh token hash; issue new `access_token` cookie; call `session_repo.mark_last_used()`; return `200`
-- [ ] Add `get_current_user` FastAPI dependency in `backend/app/dependencies.py`: read `access_token` cookie, call `auth_service.decode_token()`, fetch user from DB, raise 401 if user not found or `is_active: False`
-- [ ] Write integration test: `POST /auth/password/forgot` with unknown email → 200 (no OTP stored); with known email → 200 + OTP in Redis
-- [ ] Write integration test: `POST /auth/refresh` with valid token → new access cookie set; with expired token → 401 + cookies cleared
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
+- [ ] Implement `POST /settings/2fa` (API spec §7) with `action: "enable" | "disable"`: on `enable`, generate `pyotp.random_base32()` secret, build QR URL via `pyotp.TOTP(secret).provisioning_uri(user.email, issuer_name="MeetIO")`, encrypt `secret` with AES-256-GCM using `settings.SECRET_KEY` before storing in `users.totp_secret` — never store raw TOTP secret in DB
+- [ ] On `enable` response: return `{totp_secret, qr_code_url, message}` per API spec §7 — secret is shown once for manual entry in authenticator apps; after enable, the client must POST `/auth/2fa/verify` with a valid code before `totp_enabled: True` is committed to DB (prevents lockout from misconfiguration)
+- [ ] On `disable`: require `action: "disable"`, set `users.totp_enabled = False`, set `users.totp_secret = None`, return `200 {message: "2FA disabled."}`
+- [ ] Implement AES-256-GCM encryption helpers in `backend/app/lib/crypto.py`: `encrypt_field(plaintext: str, key: str) -> str` and `decrypt_field(ciphertext: str, key: str) -> str` — used for `totp_secret` and any future sensitive field encryption; raise `ValueError` if decryption fails
+- [ ] Write unit test `tests/test_crypto.py`: encrypt → decrypt round-trip returns original string; tampered ciphertext raises `ValueError`; write unit test for TOTP verification: generate code with `pyotp.TOTP(secret).now()`, verify passes; wrong code fails; 6th attempt returns `OTP_LOCKED` 429
+- [ ] Write integration test: enable 2FA → DB has `totp_secret` (encrypted, not raw); disable 2FA → `totp_enabled: False`, `totp_secret: None` in DB
+- Status: [ ] TODO
 
 ---
 
-### Task 2.8: Backend — Security Hardening & Rate Limiting [Compulsory]
+### Task 2.5: Backend - Google OAuth Integration [MVP]
 
-- [ ] Implement `backend/app/middleware/rate_limit.py`: Redis-based sliding window rate limiter for auth endpoints (`/signup`, `/signin`, `/otp/send`, `/password/forgot`).
-- [ ] Configure `backend/app/middleware/security.py`: Add `SecureCookieMiddleware` and `ContentSecurityPolicy` (CSP) headers to the FastAPI app.
-- [ ] Implement IP-based blocking for brute-force attempts on `/signin`.
-- [ ] Write integration test: Verify 429 `Rate limit exceeded` response after exceeding thresholds.
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
-
----
-
-### Task 2.9: Frontend — Auth API Service [MVP]
-
-- [ ] Create `frontend/src/lib/authApi.ts`: export `signup(email, password, displayName)` → `POST /v1/auth/signup`, `verifyOtp(sessionId, code)` → `POST /v1/auth/otp/verify`, `sendOtp(email, purpose)` → `POST /v1/auth/otp/send`
-- [ ] Export `signin(email, password)` → `POST /v1/auth/signin` — returns `{user}` OR `{requires_2fa, totp_session_id}`; `verify2fa(totpSessionId, code)` → `POST /v1/auth/2fa/verify`
-- [ ] Export `signinGoogle(intent)` → redirect to `GET /v1/auth/google?intent={intent}` (full page redirect, not fetch)
-- [ ] Export `signout()` → `POST /v1/auth/signout`; `forgotPassword(email)` → `POST /v1/auth/password/forgot`; `resetPassword(sessionId, code, newPassword)` → `POST /v1/auth/password/reset`
-- [ ] All functions use `apiClient.apiRequest()` — errors parsed from envelope `error.code` field, re-thrown as typed errors for UI layer to handle
-- [ ] Write Vitest unit test: `signin()` with mock returning `requires_2fa: true` → returned object has `totpSessionId` field, no user field
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
+- [ ] Configure Google OAuth2 client in `backend/app/auth/oauth.py`: `google_oauth_client = GoogleOAuth2(settings.GOOGLE_CLIENT_ID, settings.GOOGLE_CLIENT_SECRET)` using `httpx-oauth`; add `get_oauth_router(google_oauth_client, backend, settings.SECRET_KEY, redirect_url=settings.GOOGLE_REDIRECT_URI, associate_by_email=True)` mounted at `/auth/google`
+- [ ] Set `associate_by_email=True` so that a user who previously registered with email/password can link their Google account without creating a duplicate — FastAPI Users merges on matching email
+- [ ] Implement `on_after_oauth_account_add(user, oauth_account, request)` in `UserManager`: if `user.avatar_url is None` and `oauth_account.account_image_url`, set `users.avatar_url = oauth_account.account_image_url` and `avatar_type = "google"`; always ensure `google_id` and `"google"` are in `users.providers` — do NOT overwrite existing upload avatar
+- [ ] Confirm `GET /auth/google/callback` redirect on success goes to `{FRONTEND_URL}/dashboard` — set `redirect_url` in `get_oauth_router` or handle via custom callback; on failure, redirect to `{FRONTEND_URL}/signin?error=oauth_failed`
+- [ ] Write integration test (mock Google token endpoint): new Google user → account created with `providers: ["google"]`, `google_id` set, `avatar_url` populated; existing email user links Google → `providers: ["email", "google"]`, no duplicate account; mock `on_after_oauth_account_add` → avatar set correctly
+- [ ] Write unit test: `on_after_oauth_account_add` — user with existing upload avatar: `avatar_url` unchanged; user with `avatar_type: "google"` and new OAuth image: `avatar_url` updated
+- 📐 Schema: `docs/requirements/meetio-db-schema.md#1-users`
+- Status: [ ] TODO
 
 ---
 
-### Task 2.10: Frontend — Sign-In Page [MVP]
+### Task 2.6: Backend - Password Reset Flow [MVP]
 
-- [ ] Create `frontend/src/pages/SignInPage.tsx` — rendered at `/signin`, wrapped by `AuthLayout`
-- [ ] Form: email input (`type="email"`, autocomplete="email"), password input (`type="password"`, autocomplete="current-password"), [Sign in] submit button — all controlled via `useState`
-- [ ] On submit: call `authApi.signin()` — if response has `user` → call `authStore.setUser(user)`, navigate to `?redirect` param or `/dashboard`; if response has `requires_2fa` → navigate to `/signin/2fa?session={totpSessionId}`
-- [ ] Show inline field errors for `INVALID_CREDENTIALS` ("Incorrect email or password"), `RATE_LIMIT_EXCEEDED` ("Too many attempts — try again in X minutes") — never show which field is wrong
-- [ ] [Sign in with Google] button: calls `authApi.signinGoogle("signin")` — full page redirect
-- [ ] [Forgot password?] link → `/forgot-password`; [Create account] link → `/signup`
-- [ ] Loading state: button shows spinner, disabled during request; success state: brief "Signing in..." before navigation
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
+- [ ] Implement `on_after_forgot_password(user, token, request)` in `UserManager`: dispatch Celery task `send_password_reset_email.delay(user.id, token)` — send even if `user.is_verified: False` to prevent account enumeration; `POST /auth/forgot-password` must always return `202` regardless of whether the email exists (FastAPI Users default behavior — verify this is not overridden)
+- [ ] Create Celery task `send_password_reset_email(user_id, token)` in `tasks/notifications.py`: build reset link `{FRONTEND_URL}/reset-password?token={token}`, send via Resend with subject `"Reset your MeetIO password"` — 3-attempt retry with 60s backoff; log failure without re-raising to avoid 500 on `/auth/forgot-password`
+- [ ] Implement `on_after_reset_password(user, request)` in `UserManager`: revoke ALL existing sessions for `user.id` by updating `sessions` collection `$set {is_revoked: True}` where `user_id == user.id` — password reset invalidates all devices simultaneously (security requirement from Feature 3)
+- [ ] Confirm `POST /auth/reset-password` accepts `{token, password}` JSON body per API spec §1 — FastAPI Users default form matches; verify password minimum requirements (≥8 chars) are enforced by FastAPI Users `PasswordHelper` — do not add duplicate validation
+- [ ] Write integration test: unknown email → 202 (no leak); known email → Celery task queued, token stored; valid token + new password → password updated, all sessions `is_revoked: True` in DB; invalid/expired token → 400
+- Status: [ ] TODO
 
 ---
 
-### Task 2.11: Frontend — Sign-Up Page [MVP]
+### Task 2.7: Backend - Token Refresh Route [MVP]
 
-- [ ] Create `frontend/src/pages/SignUpPage.tsx` — rendered at `/signup`, wrapped by `AuthLayout`
-- [ ] Form fields: display name (text, min 2 chars), email (`type="email"`), password (`type="password"`, show strength indicator: weak/fair/strong based on length + char variety)
-- [ ] Implement password requirement checklist UI: Visual feedback for (Min 8 chars, 1 uppercase, 1 number, 1 special character) that updates as the user types.
-- [ ] On submit: call `authApi.signup()` — on success (201) navigate to `/signup/verify?session={otp_session_id}&email={email}`
-- [ ] Show inline errors: `EMAIL_TAKEN` ("An account with this email already exists — [Sign in]?"), `VALIDATION_ERROR` per field
-- [ ] [Sign up with Google] button → `authApi.signinGoogle("signup")`
-- [ ] [Already have an account?] link → `/signin`
-- [ ] Password strength indicator: `<div>` bar, grey → yellow → green as entropy increases using character class checks
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
+- [ ] Create custom `POST /auth/refresh` route in `backend/app/routers/auth.py` (API spec §1): read `refresh_token` from the `fastapiusersauth` cookie or a separate `refresh_token` cookie — confirm which cookie name `DatabaseStrategy` uses for the refresh token, then extract it by that name; return `TOKEN_INVALID` 401 if cookie missing
+- [ ] Look up the token's SHA-256 hash in `sessions` collection: `sessions.find_one({refresh_token_hash: sha256(token), is_revoked: False, expires_at: {$gt: now()}})`; return `TOKEN_EXPIRED` 401 if not found; return `TOKEN_INVALID` 401 if `is_revoked: True`
+- [ ] Rotate the token: delete the old `sessions` document, generate a new refresh token, hash it, insert a new `sessions` document with same `user_id` and fresh `expires_at = now() + 15 days`, update `last_used_at` — single-use rotation prevents refresh token replay attacks
+- [ ] Issue new cookies via `CookieTransport`: set new `access_token` cookie (4h expiry) and `refresh_token` cookie (15d expiry) — match `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` and `JWT_REFRESH_TOKEN_EXPIRE_DAYS` from `settings`
+- [ ] Write integration test: valid refresh token → 200, new `access_token` cookie set, old refresh token no longer valid; expired refresh token → 401 `TOKEN_EXPIRED`; concurrent refresh test — two simultaneous `/auth/refresh` calls with same token → second returns 401 (rotation prevents double-use)
+- Status: [ ] TODO
 
 ---
 
-### Task 2.12: Frontend — OTP Verification Page [MVP]
+### Task 2.8: Backend - Sign Out [MVP]
 
-- [ ] Create `frontend/src/pages/OTPVerifyPage.tsx` — rendered at `/signup/verify`, reads `session` and `email` from query params
-- [ ] Six individual digit input boxes (`<input maxLength={1} type="text" inputMode="numeric">`), auto-advance on digit entry, auto-focus first on mount, support paste of 6-digit string
-- [ ] On complete (all 6 filled): auto-submit — call `authApi.verifyOtp(sessionId, code)` — on success call `authStore.setUser()`, navigate to `/dashboard`
-- [ ] Error states: `INVALID_OTP` → shake animation on inputs + "Incorrect code — X attempts remaining"; `OTP_LOCKED` → disable form + "Too many attempts. Request a new code."
-- [ ] [Resend code] button: disabled for 60 seconds after send (countdown shown), then calls `authApi.sendOtp(email, "signup")` — resets inputs on resend
-- [ ] Show "We sent a code to {email}" — mask email as `p***@gmail.com` for privacy
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
+- [ ] Confirm `POST /auth/logout` route is registered via `get_auth_router(backend)` and requires `🔑` auth — FastAPI Users `DatabaseStrategy` marks the current token as `is_revoked: True` in `sessions` on logout; `CookieTransport` sets `fastapiusersauth` cookie `Max-Age=0` to clear the browser cookie
+- [ ] Implement `on_after_logout(user, token, request)` hook in `UserManager` (if supported by FastAPI Users version in use): update `sessions` document `last_used_at` to `now()` — tracks last activity time for session listing in Feature 3
+- [ ] Add a rate limit of 10 calls per minute per IP on `POST /auth/logout` to prevent DoS of session table writes — apply via `slowapi` limiter decorator matching the pattern used on `/auth/login`
+- [ ] Ensure the frontend `/signin` redirect happens client-side after the 204 response — `POST /auth/logout` returns `204 No Content`; the frontend `useAuthStore.logout()` action clears Zustand state and calls `router.navigate("/signin")` after the API call resolves
+- [ ] Write integration test: authenticated user → POST `/auth/logout` → 204, session `is_revoked: True` in DB, cookie cleared (response has `Set-Cookie` with `Max-Age=0`); unauthenticated POST `/auth/logout` → 401
+- Status: [ ] TODO
 
 ---
 
-### Task 2.13: Frontend — Forgot Password & Reset Pages [MVP]
+### Task 2.9: Frontend - API Client & 401 Refresh Mutex [MVP]
 
-- [ ] Create `frontend/src/pages/ForgotPasswordPage.tsx` at `/forgot-password`: email input, [Send reset code] button, calls `authApi.forgotPassword(email)` — always show success state ("If this email is registered, a code was sent") regardless of response to prevent enumeration
-- [ ] Create `frontend/src/pages/ResetPasswordPage.tsx` at `/reset-password?session={id}`: OTP inputs (same 6-box component as signup), new password input with strength indicator and requirements checklist, confirm password input
-- [ ] Validate passwords match client-side before submit; call `authApi.resetPassword(sessionId, code, newPassword)` on submit
-- [ ] On success: show "Password updated. Please sign in." toast, navigate to `/signin` after 2 seconds
-- [ ] Error: `INVALID_OTP` → inputs shake, attempts remaining shown; `VALIDATION_ERROR` → per-field message
-- [ ] [Back to sign in] link visible on both pages
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
-
----
-
-### Task 2.14: Frontend — 2FA Verify Page [MVP]
-
-- [ ] Create `frontend/src/pages/TwoFAVerifyPage.tsx` at `/signin/2fa?session={totpSessionId}`: 6-digit authenticator code input (single input `type="text" inputMode="numeric" maxLength={6}`), [Verify] button
-- [ ] On submit: call `authApi.verify2fa(totpSessionId, code)` — on success call `authStore.setUser(user)`, navigate to `?redirect` or `/dashboard`
-- [ ] Error: `INVALID_OTP` → "Incorrect code — X attempts remaining" inline; `OTP_LOCKED` → "Too many attempts. Please sign in again." + [Back to sign in] button, session cleared
-- [ ] `NOT_FOUND` (expired totp_session_id after 10 min): "This session expired. Please sign in again." + navigate to `/signin` after 3 seconds
-- [ ] Auto-submit when 6th digit entered (no need to click Verify)
-- [ ] [Use a different account] link → `/signin`
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
+- [ ] Create `frontend/src/lib/apiClient.ts` exporting `async function apiRequest<T>(path: string, options?: RequestInit): Promise<T>`: calls `fetch(env.apiUrl + path, {credentials: "include", ...options})`, parses JSON response, unwraps `data` field from API envelope `{success, data, error, meta}`
+- [ ] Implement 401 refresh mutex: declare module-level `let refreshPromise: Promise<void> | null = null`; on 401 response, if `refreshPromise` is null, set `refreshPromise = fetch("/auth/refresh", {method:"POST", credentials:"include"}).then(() => { refreshPromise = null })`, else wait on existing `refreshPromise`; after refresh resolves, retry original request exactly once; if retry still 401, call `useAuthStore.getState().logout()` and throw
+- [ ] Add typed error parsing: on non-2xx response, extract `error.code` and `error.message` from the envelope, throw a custom `ApiError` class with `code: string` and `message: string` properties — callers can `catch(e) { if (e instanceof ApiError && e.code === "MEETING_FULL") ... }`
+- [ ] Write unit test `tests/apiClient.test.ts` (Vitest + MSW): mock server returns 401 then 200 on retry — assert exactly 1 call to `/auth/refresh` and 1 retry; mock 4 concurrent calls all returning 401 — assert exactly 1 `fetch("/auth/refresh")` fired (mutex working), all 4 callers receive the retried response
+- [ ] Create `frontend/src/lib/authApi.ts` exporting typed API functions: `register(email, password, displayName)`, `login(email, password)`, `logout()`, `forgotPassword(email)`, `resetPassword(token, password)`, `refreshToken()`, `verify2FA(totpSessionId, code)` — each calls `apiRequest` with correct path, method, and body per API spec §1
+- [ ] Create `frontend/src/lib/settingsApi.ts` exporting: `enable2FA()`, `disable2FA()`, `changePassword(currentPassword, newPassword)`, `updateSettings(payload)`, `getSettings()`, `getLinkedAccounts()`, `deleteLinkedAccount(provider)` — all call `apiRequest` with correct paths from API spec §7
+- Status: [ ] TODO
 
 ---
 
-### Task 2.15: Frontend — Auth Guard & Route Protection [MVP]
+### Task 2.10: Frontend - Auth Zustand Store [MVP]
 
-- [ ] Create `frontend/src/components/guards/AuthGuard.tsx`: reads `authStore.isAuthenticated` and `authStore.isLoading`; if loading → render `<PageSpinner />`; if not authenticated → `<Navigate to={"/signin?redirect=" + encodeURIComponent(location.pathname)} replace />`; else → `<Outlet />`
-- [ ] Wrap all authenticated routes (`/dashboard`, `/calendar`, `/messenger`, `/meetings/*`, `/action-items`, `/settings`, `/profile`) with `<AuthGuard />` in `router.tsx`
-- [ ] Create `frontend/src/components/guards/GuestGuard.tsx`: if authenticated → `<Navigate to="/dashboard" replace />`; else → `<Outlet />` — wrap `/signin`, `/signup`, `/forgot-password`, `/reset-password` with this
-- [ ] On app boot (`main.tsx`): call `GET /v1/profile` to rehydrate auth state — `authStore.setLoading(true)` before call, `setUser(user)` or `setUser(null)` in finally block, `setLoading(false)` — prevents flash of redirect
-- [ ] Handle Google OAuth callback: on mount at `/dashboard`, check for `?link_required=true` query param — if present show account-linking toast with OTP flow
-- Status: [ ] Not Started
-- Tests: [ ] Not Started
+- [ ] Create `frontend/src/stores/authStore.ts` with `useAuthStore = create<AuthState>()(...)`: state fields `user: User | null`, `isAuthenticated: boolean`, `isLoading: boolean`, `error: string | null`; `User` type matches API spec §8 profile shape: `{user_id, display_name, email, avatar_url, avatar_type, timezone, language, providers}`
+- [ ] Implement `login(email, password)` action: call `authApi.login()`, on success call `fetchCurrentUser()` to populate `user` state, set `isAuthenticated: true`; on `INVALID_CREDENTIALS` 401 set `error: "Invalid email or password"`; on `requires_2fa: true` response, return `{requires_2fa: true, totp_session_id}` without setting `isAuthenticated`
+- [ ] Implement `logout()` action: call `authApi.logout()`, clear `user: null`, `isAuthenticated: false`, `error: null` — always clear local state even if API call fails (network error must not leave user stuck in authenticated state)
+- [ ] Implement `fetchCurrentUser()` action: call `GET /auth/users/me` via `apiRequest`, set `user` from response; called on app mount in `App.tsx` to rehydrate auth state from existing cookie — if 401, set `isAuthenticated: false` without triggering a toast
+- [ ] Add `initAuth()` action called in `App.tsx` `useEffect([], ...)`: calls `fetchCurrentUser()`, sets `isLoading: false` when complete regardless of outcome — prevents flash of unauthenticated state on page refresh; set `isLoading: true` initially so protected routes show a loading spinner, not a redirect
+- [ ] Write unit test: `login()` with valid credentials → `isAuthenticated: true`, `user` populated; `login()` with wrong password → `error` set, `isAuthenticated: false`; `logout()` on network error → state still cleared
+- Status: [ ] TODO
+
+---
+
+### Task 2.11: Frontend - Sign-In Page [MVP]
+
+- [ ] Create `frontend/src/pages/SignInPage.tsx` at route `/signin`: form with `email` (type="email") and `password` (type="password") inputs, "Sign in" submit button, "Forgot password?" link to `/forgot-password`, "Don't have an account? Sign up" link to `/signup`, "Continue with Google" button calling `GET /auth/google/authorize`
+- [ ] On submit: call `useAuthStore.login(email, password)`; show inline `<LoadingSpinner />` on button while `isLoading: true`; on `requires_2fa: true` response, navigate to `/auth/2fa` with `totp_session_id` in location state; on success, navigate to `location.state?.redirect ?? "/dashboard"` (respects `?redirect=` param from lobby flow)
+- [ ] Implement form validation before submit: email must match `/^[^\s@]+@[^\s@]+\.[^\s@]+$/`, password must be non-empty — show red helper text under each invalid field; do NOT submit if either is invalid
+- [ ] Show error banner above form on `INVALID_CREDENTIALS` 401: `"Invalid email or password."` in a red `<Alert>` component — clear the banner when the user starts typing in either field
+- [ ] Redirect authenticated users away from `/signin`: in `useEffect`, if `isAuthenticated`, navigate to `/dashboard` — prevents showing sign-in to already-logged-in users who navigate back
+- [ ] Apply `dark:` Tailwind variants for dark mode: form container `bg-white dark:bg-gray-900`, inputs `border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-white`, error text `text-red-600 dark:text-red-400`
+- Status: [ ] TODO
+
+---
+
+### Task 2.12: Frontend - Sign-Up Page [MVP]
+
+- [ ] Create `frontend/src/pages/SignUpPage.tsx` at route `/signup`: form with `display_name`, `email`, `password`, `confirm_password` inputs; "Create account" submit button; "Continue with Google" button; "Already have an account? Sign in" link to `/signin`
+- [ ] On submit: call `authApi.register(email, password, displayName)`, then immediately call `authApi.login(email, password)` to sign in the newly created user (registration does not auto-sign-in); show success state: `"Check your email to verify your account"` with a mail icon — do not navigate to dashboard until email is verified
+- [ ] Implement field-level validation: `display_name` 2–50 chars (show char counter), `email` valid format, `password` ≥8 chars with at least one uppercase and one number (show strength indicator), `confirm_password` must match `password` — validate on blur and on submit
+- [ ] Handle `EMAIL_TAKEN` 409 error: show inline error under email field — `"An account with this email already exists. Sign in instead?"` with an inline link to `/signin`
+- [ ] Show loading state on submit button: disable button and show `<LoadingSpinner />` while awaiting `authApi.register()` and `authApi.login()` calls; re-enable on error
+- [ ] After successful sign-up, display inline success state on the same page (do NOT navigate away): show `"Verification email sent to {email}"` with a "Resend email" button (disabled for 60s after first send to prevent abuse) — navigating to dashboard is gated on email verification
+- Status: [ ] TODO
+
+---
+
+### Task 2.13: Frontend - Forgot Password & Reset Password Pages [MVP]
+
+- [ ] Create `frontend/src/pages/ForgotPasswordPage.tsx` at route `/forgot-password`: single email input and "Send reset link" button; on submit call `authApi.forgotPassword(email)` — always show success state `"If that email is registered, a reset link has been sent."` regardless of response (mirrors server-side no-leak behavior); disable button and show 60s countdown before allowing resubmit
+- [ ] Create `frontend/src/pages/ResetPasswordPage.tsx` at route `/reset-password`: reads `?token=` from URL `searchParams`; shows `new_password` and `confirm_password` inputs; if `token` is missing from URL, immediately redirect to `/forgot-password` with a toast `"Reset link is invalid or expired"`
+- [ ] On reset submit: call `authApi.resetPassword(token, newPassword)`; on 422 `VALIDATION_ERROR` show password requirements inline; on 400 (invalid token) show error banner `"This reset link has expired. Request a new one."` with link back to `/forgot-password`
+- [ ] On successful reset: show `"Password updated successfully."` with a "Sign in" button navigating to `/signin` — do NOT auto-sign-in, as all sessions were invalidated server-side
+- [ ] Apply loading, error, and success states with Tailwind: loading → button disabled with spinner; error → red `<Alert>` above form; success → green checkmark icon with message; all transitions smooth with `transition-all duration-200`
+- Status: [ ] TODO
+
+---
+
+### Task 2.14: Frontend - 2FA Verify Page [MVP]
+
+- [ ] Create `frontend/src/pages/TwoFactorPage.tsx` at route `/auth/2fa`: reads `totp_session_id` from `location.state`; if missing, redirect to `/signin`; render single 6-digit OTP input (styled as 6 individual boxes or a single `<input maxLength={6} inputMode="numeric">` field per UX preference)
+- [ ] On 6-digit input completed (auto-submit or submit button): call `authApi.verify2FA(totpSessionId, code)`; on success, call `useAuthStore.fetchCurrentUser()` then navigate to `"/dashboard"` — cookies are set server-side on successful 2FA verify
+- [ ] Handle errors: `INVALID_OTP` 400 → clear input field, show `"Incorrect code. Try again."` inline; `OTP_LOCKED` 429 → show `"Too many attempts. Please sign in again."` and navigate to `/signin` after 3 seconds; `NOT_FOUND` 404 → session expired, navigate to `/signin` with toast `"Session expired, please sign in again"`
+- [ ] Show attempt counter: track attempts in local state, display `"X attempts remaining"` warning when ≤ 2 remaining (client-side estimate — server is authoritative)
+- [ ] Show context above the input: `"Enter the 6-digit code from your authenticator app for {email}"` — email retrieved from `location.state.email` passed from the sign-in page; if not available, omit without error
+- Status: [ ] TODO
+
+---
+
+### Task 2.15: Frontend - Google OAuth Button & Callback Handling [MVP]
+
+- [ ] Create `frontend/src/components/auth/GoogleOAuthButton.tsx`: renders a button with Google "G" logo SVG icon, label `"Continue with Google"`, and calls `window.location.href = env.apiUrl + "/auth/google/authorize"` on click — full page redirect required for OAuth flow (cannot use `fetch`)
+- [ ] Handle OAuth callback: on `GET /auth/google/callback` the server redirects to `{FRONTEND_URL}/dashboard` with auth cookies already set; ensure `App.tsx` calls `initAuth()` on mount so `useAuthStore.user` is populated from the cookie on dashboard load
+- [ ] Handle OAuth error redirect: if server redirects to `{FRONTEND_URL}/signin?error=oauth_failed`, read `searchParams.get("error")` in `SignInPage.tsx` and show error banner `"Google sign-in failed. Please try again."` — clear error from URL with `window.history.replaceState` to prevent showing the error on browser back
+- [ ] Ensure `GoogleOAuthButton` is disabled during in-progress auth: accept `isLoading: boolean` prop, show spinner inside button when `true` — prevents double-clicks during the redirect initiation
+- [ ] Write unit test: `GoogleOAuthButton` click triggers `window.location.href` assignment; `SignInPage` with `?error=oauth_failed` in URL renders error banner; `App.tsx` `initAuth()` called on mount
+- Status: [ ] TODO
+
+---
+
+## Future Tasks (Not MVP)
+
+### Task 2.16: Backend + Frontend - GitHub OAuth
+
+- [ ] Add `github_oauth_client = GitHubOAuth2(settings.GITHUB_CLIENT_ID, settings.GITHUB_CLIENT_SECRET)` to `auth/oauth.py` once `httpx-oauth` GitHub provider is confirmed stable
+- [ ] Register `get_oauth_router(github_oauth_client, ...)` at `/auth/github` following identical pattern as Google
+- [ ] Add `github_id: Optional[str]` field to `User` model and `"github"` as valid provider in `users.providers` array
+- [ ] Add `GitHub` entry to `GET /settings/linked-accounts` response shape and frontend linked accounts UI
+- [ ] Write integration tests matching Google OAuth test coverage for GitHub flow
+- Status: TODO
 
 ---
 
 ## Summary
 
-| Category     | Tasks  | Completed | Remaining |
-| ------------ | ------ | --------- | --------- |
-| MVP Tasks    | 15     | 0         | 15        |
-| Future Tasks | 0      | 0         | 0         |
-| **Total**    | **15** | **0**     | **15**    |
+| Category     | Tasks   | Completed | Remaining |
+| ------------ | ------- | --------- | --------- |
+| MVP Tasks    | 15      | 0         | 15        |
+| Future Tasks | 1       | 0         | 1         |
+| **Total**    | **16**  | **0**     | **16**    |
+
+## Execution Order
+
+1. **Backend Foundation:** 2.1 (FastAPI Users core config — User model, UserManager, transport + strategy)
+2. **Backend Registration & Login:** 2.2 → 2.3 (Email registration + verification → Sign-in + 2FA intercept)
+3. **Backend 2FA & OAuth:** 2.4 → 2.5 (TOTP setup endpoint → Google OAuth router)
+4. **Backend Reset & Refresh:** 2.6 → 2.7 → 2.8 (Password reset → Token refresh → Sign out)
+5. **Frontend Foundation:** 2.9 → 2.10 (API client + mutex → Auth Zustand store)
+6. **Frontend Auth Pages:** 2.11 → 2.12 → 2.13 → 2.14 → 2.15 (Sign-in → Sign-up → Forgot/Reset password → 2FA page → Google button)
+7. **Future:** 2.16 (GitHub OAuth — deferred)

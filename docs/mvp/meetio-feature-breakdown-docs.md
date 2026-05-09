@@ -68,37 +68,36 @@
 
 ## 2. Authentication
 
-- [MVP] **Email/password registration** — `POST /auth/signup`, OTP sent via Resend, `otp_sessions` in Redis (10-min TTL, max 5 attempts), account inactive until `POST /auth/otp/verify`, Argon2 password hash (passlib), `users` collection document created
+- [MVP] **Email/password registration** — Use FastAPI Users built-in `/auth/register` and `/auth/verify` routes. `on_after_register` hook dispatches Resend email with token. Account activated via token verification, setting `is_active: True`.
   - Status: [ ] Not started
   - Effort: M
   - DB Impact: New model (`users`, `sessions`)
-  - Tests: Unit (argon2 hash), Integration (`/auth/signup`, `/auth/otp/verify`), E2E (sign up → OTP → dashboard)
+  - Tests: Integration (`/auth/register`, `/auth/verify`), E2E (sign up → email token → verify → dashboard)
   - Acceptance:
-    - Given valid email + password, When POST /auth/signup, Then OTP sent and account pending
-    - Given correct OTP, When POST /auth/otp/verify, Then account activated and cookies set
+    - Given valid email + password, When POST /auth/register, Then token email sent and account pending
+    - Given correct token, When POST /auth/verify, Then account activated
   - User Story: As a new user, I want to register with email so that I can access the full platform.
 
-- [MVP] **Email/password sign-in** — `POST /auth/signin`, Argon2 verify, if TOTP enabled → return `requires_2fa: true` + `totp_session_id` (no cookies yet), if not → set HttpOnly access + refresh cookies, rate limit 10/15min per IP
+- [MVP] **Email/password sign-in** — Use FastAPI Users built-in `POST /auth/login` (CookieTransport + DatabaseStrategy). Automates Argon2 verification and issues HttpOnly access cookie. If TOTP 2FA is needed, intercept login flow to require `/auth/2fa/verify` (custom addition).
   - Status: [ ] Not started
   - Effort: M
   - DB Impact: Modify (`users`), New (`sessions`)
-  - Tests: Unit (jwt encode/decode with PyJWT), Integration, E2E
+  - Tests: Integration (`/auth/login`), E2E
   - Acceptance:
-    - Given correct credentials (no 2FA), When POST /auth/signin, Then access + refresh cookies set
-    - Given correct credentials (2FA enabled), When POST /auth/signin, Then requires_2fa: true returned, no cookies
+    - Given correct credentials, When POST /auth/login, Then access cookie set via FastAPI Users
+    - Given correct credentials (2FA enabled), When POST /auth/login, Then requires_2fa returned, no cookies
   - User Story: As a returning user, I want to sign in securely so that my data is protected.
 
-- [MVP] **Google OAuth** — `GET /auth/google` → Google consent screen, `GET /auth/google/callback` server-side token exchange, create account if new, link if email exists (OTP required), import name + avatar option, set cookies
+- [MVP] **Google OAuth** — Integrate FastAPI Users OAuth router (`/auth/google/authorize`, `/auth/google/callback`). Server-side exchange, create account if new, import name + avatar option.
   - Status: [ ] Not started
   - Effort: L
   - DB Impact: Modify (`users` — add google_id, providers array)
   - Tests: Integration (mock Google), E2E (full OAuth flow)
   - Acceptance:
     - Given new Google account, When OAuth callback, Then account created and logged in
-    - Given existing email account, When same Google email, Then OTP sent to link accounts
   - User Story: As a user, I want to sign in with Google so that I don't need to remember a password.
 
-- [MVP] **TOTP 2FA** — `POST /settings/2fa` (enable → return secret + QR URL, disable), `POST /auth/2fa/verify` (TOTP code → set cookies), `totp_secret` encrypted at rest in `users`, 5-attempt lockout
+- [MVP] **TOTP 2FA** — Custom extension on top of FastAPI Users. `POST /settings/2fa` (enable → return secret + QR URL, disable), `POST /auth/2fa/verify` (TOTP code → set cookies), `totp_secret` encrypted at rest in `users`, 5-attempt lockout.
   - Status: [ ] Not started
   - Effort: M
   - DB Impact: Modify (`users` — totp_enabled, totp_secret)
@@ -108,26 +107,26 @@
     - Given 5 wrong codes, When 6th attempt, Then OTP_LOCKED 429 returned
   - User Story: As a security-conscious user, I want 2FA so that my account is protected even if my password leaks.
 
-- [MVP] **Password reset** — `POST /auth/password/forgot` (always 200, OTP to email if exists — no enumeration), `POST /auth/password/reset` (OTP verify + new password), all sessions invalidated on reset
+- [MVP] **Password reset** — Use FastAPI Users built-in `POST /auth/forgot-password` (triggers email via `on_after_forgot_password` hook with token) and `POST /auth/reset-password` (token + new password). All sessions invalidated on reset.
   - Status: [ ] Not started
   - Effort: S
   - DB Impact: Modify (`users`, `sessions`)
   - Tests: Integration, E2E
   - Acceptance:
-    - Given unknown email, When POST /auth/password/forgot, Then 200 returned (no leak)
-    - Given correct OTP, When POST /auth/password/reset, Then password updated, all sessions revoked
+    - Given unknown email, When POST /auth/forgot-password, Then 200 returned (no leak)
+    - Given correct token, When POST /auth/reset-password, Then password updated, sessions revoked
   - User Story: As a user who forgot their password, I want to reset it securely so that I can regain access.
 
-- [MVP] **Sign out** — `POST /auth/signout`, refresh token revoked in `sessions`, cookies cleared (Max-Age=0)
+- [MVP] **Sign out** — Use FastAPI Users built-in `POST /auth/logout`. DatabaseStrategy revokes the token in `sessions`, CookieTransport clears the cookie (Max-Age=0).
   - Status: [ ] Not started
   - Effort: S
   - DB Impact: Modify (`sessions`)
   - Tests: Integration
   - Acceptance:
-    - Given authenticated user, When POST /auth/signout, Then cookies cleared and session revoked
+    - Given authenticated user, When POST /auth/logout, Then cookies cleared and session revoked
   - User Story: As a user, I want to sign out so that my session ends on shared devices.
 
-- [MVP] **Token refresh** — `POST /auth/refresh` (refresh token cookie only), single-use rotation, new access token issued, frontend mutex (`refreshPromise`) prevents concurrent refresh on multiple 401s
+- [MVP] **Token refresh** — Custom `/auth/refresh` route (FastAPI Users natively does not support long-lived refresh tokens seamlessly with the same router). Single-use rotation, new access token issued, frontend mutex (`refreshPromise`) prevents concurrent refresh on multiple 401s
   - Status: [ ] Not started
   - Effort: M
   - DB Impact: Modify (`sessions`)

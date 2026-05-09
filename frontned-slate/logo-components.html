@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MeetIO Logo Component</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<style>
+:root{--canvas:#fff1e6;--ink:#0a0a0a;--primary:#ffe500;--secondary:#ff4f8b;--accent:#c6ff3d;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Archivo Black',sans-serif;background:var(--canvas);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;padding:40px;}
+h2{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--ink);opacity:0.5;font-family:'Archivo Black',sans-serif;}
+.demo-row{display:flex;align-items:center;gap:40px;flex-wrap:wrap;justify-content:center;}
+
+/* ── LOGO COMPONENT ── */
+.meetio-logo{display:flex;align-items:center;gap:16px;cursor:pointer;text-decoration:none;}
+.meetio-logo__box{width:40px;height:40px;background:var(--ink);border:2px solid var(--ink);box-shadow:3px 3px 0px var(--ink);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform 0.15s ease;}
+.meetio-logo__box i{color:#fff;font-size:20px;}
+.meetio-logo__wordmark{font-family:'Archivo Black',sans-serif;font-size:24px;letter-spacing:-0.05em;text-transform:uppercase;color:var(--ink);line-height:1;}
+
+/* Jiggle on hover */
+.meetio-logo:hover .meetio-logo__box{animation:logoJiggle 0.5s ease-in-out infinite;}
+@keyframes logoJiggle{
+  0%{transform:rotate(0deg) scale(1.1);}
+  25%{transform:rotate(-10deg) scale(1.1);}
+  75%{transform:rotate(10deg) scale(1.1);}
+  100%{transform:rotate(0deg) scale(1.1);}
+}
+
+/* Size variants */
+.meetio-logo--sm .meetio-logo__box{width:32px;height:32px;}
+.meetio-logo--sm .meetio-logo__box i{font-size:16px;}
+.meetio-logo--sm .meetio-logo__wordmark{font-size:18px;}
+.meetio-logo--sm{gap:12px;}
+
+.meetio-logo--lg .meetio-logo__box{width:56px;height:56px;box-shadow:4px 4px 0px var(--ink);}
+.meetio-logo--lg .meetio-logo__box i{font-size:28px;}
+.meetio-logo--lg .meetio-logo__wordmark{font-size:32px;}
+.meetio-logo--lg{gap:20px;}
+
+/* Inverted variant */
+.meetio-logo--inverted .meetio-logo__box{background:var(--primary);box-shadow:3px 3px 0px var(--ink);}
+.meetio-logo--inverted .meetio-logo__box i{color:var(--ink);}
+.meetio-logo--inverted .meetio-logo__wordmark{color:var(--ink);}
+
+/* On-dark variant */
+.dark-bg{background:var(--ink);padding:20px 28px;display:inline-flex;}
+.meetio-logo--on-dark .meetio-logo__box{background:var(--primary);box-shadow:3px 3px 0px rgba(255,229,0,0.4);}
+.meetio-logo--on-dark .meetio-logo__box i{color:var(--ink);}
+.meetio-logo--on-dark .meetio-logo__wordmark{color:#fff;}
+
+/* Icon-only */
+.meetio-logo--icon-only .meetio-logo__wordmark{display:none;}
+.meetio-logo--icon-only{gap:0;}
+
+/* Spec table */
+.spec-box{margin-top:24px;border:2px solid var(--ink);background:#fff;width:100%;max-width:540px;}
+.spec-box__header{background:var(--primary);padding:10px 16px;font-family:'Archivo Black',sans-serif;font-size:12px;letter-spacing:1px;text-transform:uppercase;border-bottom:2px solid var(--ink);}
+.spec-box__body{padding:16px;font-family:'Courier New',monospace;font-size:12px;line-height:1.8;color:var(--ink);}
+.spec-key{color:#888;display:inline-block;min-width:140px;}
+</style>
+</head>
+<body>
+
+<h2>MEETIO — Logo Component Library</h2>
+
+<div class="demo-row">
+  <!-- Default -->
+  <div style="text-align:center">
+    <a class="meetio-logo" href="#">
+      <div class="meetio-logo__box"><i class="fa-solid fa-video"></i></div>
+      <span class="meetio-logo__wordmark">MEETIO</span>
+    </a>
+    <p style="margin-top:10px;font-size:11px;letter-spacing:1px;opacity:0.5;font-family:'Archivo Black',sans-serif;">DEFAULT · 40PX</p>
+  </div>
+
+  <!-- Small -->
+  <div style="text-align:center">
+    <a class="meetio-logo meetio-logo--sm" href="#">
+      <div class="meetio-logo__box"><i class="fa-solid fa-video"></i></div>
+      <span class="meetio-logo__wordmark">MEETIO</span>
+    </a>
+    <p style="margin-top:10px;font-size:11px;letter-spacing:1px;opacity:0.5;font-family:'Archivo Black',sans-serif;">SMALL · 32PX</p>
+  </div>
+
+  <!-- Large -->
+  <div style="text-align:center">
+    <a class="meetio-logo meetio-logo--lg" href="#">
+      <div class="meetio-logo__box"><i class="fa-solid fa-video"></i></div>
+      <span class="meetio-logo__wordmark">MEETIO</span>
+    </a>
+    <p style="margin-top:10px;font-size:11px;letter-spacing:1px;opacity:0.5;font-family:'Archivo Black',sans-serif;">LARGE · 56PX</p>
+  </div>
+</div>
+
+<div class="demo-row">
+  <!-- Yellow variant -->
+  <div style="text-align:center">
+    <a class="meetio-logo meetio-logo--inverted" href="#">
+      <div class="meetio-logo__box"><i class="fa-solid fa-video"></i></div>
+      <span class="meetio-logo__wordmark">MEETIO</span>
+    </a>
+    <p style="margin-top:10px;font-size:11px;letter-spacing:1px;opacity:0.5;font-family:'Archivo Black',sans-serif;">YELLOW BOX</p>
+  </div>
+
+  <!-- On dark -->
+  <div style="text-align:center">
+    <div class="dark-bg">
+      <a class="meetio-logo meetio-logo--on-dark" href="#">
+        <div class="meetio-logo__box"><i class="fa-solid fa-video"></i></div>
+        <span class="meetio-logo__wordmark">MEETIO</span>
+      </a>
+    </div>
+    <p style="margin-top:10px;font-size:11px;letter-spacing:1px;opacity:0.5;font-family:'Archivo Black',sans-serif;">ON DARK</p>
+  </div>
+
+  <!-- Icon only -->
+  <div style="text-align:center">
+    <a class="meetio-logo meetio-logo--icon-only" href="#">
+      <div class="meetio-logo__box"><i class="fa-solid fa-video"></i></div>
+      <span class="meetio-logo__wordmark">MEETIO</span>
+    </a>
+    <p style="margin-top:10px;font-size:11px;letter-spacing:1px;opacity:0.5;font-family:'Archivo Black',sans-serif;">ICON ONLY</p>
+  </div>
+</div>
+
+<!-- Spec sheet -->
+<div class="spec-box">
+  <div class="spec-box__header">COMPONENT SPEC</div>
+  <div class="spec-box__body">
+    <div><span class="spec-key">Icon:</span>fa-solid fa-video</div>
+    <div><span class="spec-key">Box BG:</span>#0a0a0a (Ink Black)</div>
+    <div><span class="spec-key">Box shadow:</span>3px 3px 0px #0a0a0a</div>
+    <div><span class="spec-key">Icon color:</span>#ffffff</div>
+    <div><span class="spec-key">Wordmark font:</span>Archivo Black, 900</div>
+    <div><span class="spec-key">Wordmark color:</span>#0a0a0a</div>
+    <div><span class="spec-key">Tracking:</span>-0.05em (letter-spacing)</div>
+    <div><span class="spec-key">Gap:</span>16px (default)</div>
+    <div><span class="spec-key">Hover FX:</span>logoJiggle @ 0.5s infinite</div>
+    <div><span class="spec-key">Border:</span>2px solid #0a0a0a</div>
+  </div>
+</div>
+
+</body>
+</html>
