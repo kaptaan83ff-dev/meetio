@@ -64,3 +64,4 @@ yarn-error.log*
 .agents/
 .opencode/
 designs/
+skills-lock.json
