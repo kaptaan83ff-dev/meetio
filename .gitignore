@@ -59,7 +59,8 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # -----------------------------
-# Agent / Temporary Files
+# Agent / Temporary / Reference Files
 # -----------------------------
 .agents/
 .opencode/
+frontend-slate/
