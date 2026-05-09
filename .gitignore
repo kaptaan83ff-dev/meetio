@@ -63,4 +63,4 @@ yarn-error.log*
 # -----------------------------
 .agents/
 .opencode/
-frontend-slate/
+designs/
