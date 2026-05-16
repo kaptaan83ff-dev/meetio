@@ -1,4 +1,4 @@
-﻿# -----------------------------
+# -----------------------------
 # Environment Variables (ALL SENSITIVE FILES)
 # -----------------------------
 .env
@@ -49,8 +49,8 @@ celerybeat.pid
 # Node.js / Frontend (Vite/React)
 # -----------------------------
 node_modules/
-dist/
-build/
+frontend/dist/
+frontend/build/
 .eslintcache
 .stylelintcache
 npm-debug.log*

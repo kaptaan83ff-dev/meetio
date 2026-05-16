@@ -3,7 +3,7 @@
 **Feature:** Feature 1 from MVP Roadmap
 **Estimated Time:** 6–8 hours
 **Priority:** FIRST — must be complete before any other feature
-**Status:** [ ] Not started
+**Status:** [x] Completed (MVP tasks)
 
 ---
 
@@ -116,7 +116,7 @@
 
 - [x] Create `frontend/src/config/env.ts` with typed `env` const: `apiUrl: import.meta.env.VITE_API_URL as string`, `wsUrl: import.meta.env.VITE_WS_URL as string`, `livekitUrl: import.meta.env.VITE_LIVEKIT_URL as string`, `appEnv: import.meta.env.VITE_APP_ENV as "development" | "staging" | "production"`, `sentryDsn: import.meta.env.VITE_SENTRY_DSN as string` — single source of truth; components never read `import.meta.env` directly
 - [x] Add runtime guard in `env.ts`: if `!env.apiUrl || !env.wsUrl` in `"development"` or `"staging"` env, throw `Error("VITE_API_URL and VITE_WS_URL must be set — check .env.development")` — catches misconfiguration at startup rather than silent failures on first API call
-- [x] Create `frontend/.env.development` with local values: `VITE_API_URL=http://localhost:8000`, `VITE_WS_URL=ws://localhost:8000`, `VITE_APP_ENV=development` — never commit with real API keys; `.env` is in `.gitignore`
+- [x] Create `frontend/.env.development` with local values: `VITE_API_URL=http://localhost:8000`, `VITE_WS_URL=ws://localhost:8000`, `VITE_APP_ENV=development` — contains no secrets; safe to commit for developer convenience
 - [x] Create `frontend/.env.example` listing all `VITE_` variables with placeholder values and comments matching TRD §4.1 — committed to repo so new developers know all required frontend env vars
 - [x] Create `frontend/src/router.tsx` using `createBrowserRouter` with all routes from TRD §2.3 stubbed as `element: <div>placeholder</div>`: `/signin`, `/signup`, `/forgot-password`, `/dashboard`, `/calendar`, `/messenger`, `/action-items`, `/settings`, `/profile`, `/meeting/:id/lobby`, `/meeting/:id`, `/meetings/:id/recap`, `/meetings/:id/transcript`, `/meetings/:id/recording` — stubs prevent TypeScript errors on `<Link to="/dashboard">` in later components before the real pages exist
 - Status: [x] COMPLETED

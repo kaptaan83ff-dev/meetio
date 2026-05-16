@@ -28,10 +28,10 @@
 
 ### Task 4.2: Backend - Profile APIs [MVP]
 
-- [ ] Create `backend/app/routers/profile.py` with `router = APIRouter(prefix="/profile", tags=["Profile"])`: implement `GET /profile` returning cached profile — check `user:profile:{user_id}` Redis key first (TTL 600s); on miss, call `profile_service.get_profile()`, store result in Redis, return `200 {data: {...}}` per API spec §8
-- [ ] Implement `PUT /profile`: accept `ProfileUpdateRequest` Pydantic model with optional fields `display_name: Optional[str] = None`, `timezone: Optional[str] = None`, `language: Optional[str] = None`; call `profile_service.update_profile()`; return `200` with updated profile object matching `GET /profile` response shape
-- [ ] Implement `GET /settings` in `backend/app/routers/settings.py`: return `users` document fields `{timezone, language, theme, email_notifications}` per API spec §7; no caching needed (infrequent access)
-- [ ] Implement `PUT /settings`: accept `SettingsUpdateRequest` with optional `timezone`, `theme: Optional[Literal["light", "dark", "system"]]`, `email_notifications: Optional[dict]`; call `profile_service.update_settings()`; return `200` with updated settings object
+- [ ] Create `backend/app/routers/profile.py` with `router = APIRouter(prefix="/profile", tags=["Profile"])` (mounted under `v1_router`, so all paths are `/v1/profile/...`): implement `GET /v1/profile` returning cached profile — check `user:profile:{user_id}` Redis key first (TTL 600s); on miss, call `profile_service.get_profile()`, store result in Redis, return `200 {data: {...}}` per API spec §8
+- [ ] Implement `PUT /v1/profile`: accept `ProfileUpdateRequest` Pydantic model with optional fields `display_name: Optional[str] = None`, `timezone: Optional[str] = None`, `language: Optional[str] = None`; call `profile_service.update_profile()`; return `200` with updated profile object matching `GET /v1/profile` response shape
+- [ ] Implement `GET /v1/settings` in `backend/app/routers/settings.py`: return `users` document fields `{timezone, language, theme, email_notifications}` per API spec §7; no caching needed (infrequent access)
+- [ ] Implement `PUT /v1/settings`: accept `SettingsUpdateRequest` with optional `timezone`, `theme: Optional[Literal["light", "dark", "system"]]`, `email_notifications: Optional[dict]`; call `profile_service.update_settings()`; return `200` with updated settings object
 - [ ] Register both routers in `main.py` under `v1_router`: `v1_router.include_router(profile_router)`, `v1_router.include_router(settings_router)` — all routes served under `/v1/profile` and `/v1/settings`
 - [ ] Write integration test `tests/test_profile_api.py`: GET `/profile` cold cache → DB queried, Redis populated; GET `/profile` warm cache → DB not queried (mock `db.users.find_one` assert not called); PUT `/profile` with invalid timezone → 422; PUT `/profile` valid → 200, Redis key deleted
 - 📐 Schema: `docs/requirements/meetio-db-schema.md#1-users`
@@ -41,7 +41,7 @@
 
 ### Task 4.3: Backend - Avatar Upload & Deletion [MVP]
 
-- [ ] Implement `POST /profile/avatar` in `profile.py`: accept `multipart/form-data` with field `file`; validate MIME type server-side using `python-magic` (reads file bytes, not extension) — allowed: `image/jpeg`, `image/png`, `image/webp`; reject all others with `VALIDATION_ERROR` 422 `{message: "File must be JPG, PNG, or WebP"}`
+- [ ] Implement `POST /v1/profile/avatar` in `profile.py`: accept `multipart/form-data` with field `file`; validate type by attempting `PIL.Image.open(file)` and checking `img.format in {"JPEG","PNG","WEBP"}` — reject all others with `VALIDATION_ERROR` 422 `{message: "File must be JPG, PNG, or WebP"}`
 - [ ] Validate file size server-side: read up to 5MB + 1 byte; if total bytes read > 5MB, return `VALIDATION_ERROR` 422 `{message: "File must be under 5MB"}` — do NOT buffer the entire file before checking size; use `await file.read(5 * 1024 * 1024 + 1)` and check length
 - [ ] Re-encode to WebP using Pillow: `img = Image.open(BytesIO(file_bytes))`, strip EXIF by calling `img_clean = Image.new(img.mode, img.size)` + `img_clean.paste(img)` or use `piexif.remove(file_bytes)`, then `img.save(output, format="WEBP", quality=85)` — EXIF stripping prevents geolocation data leaks from user photos
 - [ ] Upload to Cloudflare R2: key `avatars/{user_id}.webp` using `boto3` S3-compatible client configured with `settings.R2_ENDPOINT_URL`, `settings.R2_ACCESS_KEY_ID`, `settings.R2_SECRET_ACCESS_KEY`, bucket `settings.R2_BUCKET_NAME`; update `users.avatar_url = "{R2_PUBLIC_URL}/avatars/{user_id}.webp"` and `avatar_type = "upload"`; invalidate `user:profile:{user_id}` Redis cache; return `200 {data: {avatar_url: "..."}}`
@@ -53,11 +53,11 @@
 
 ### Task 4.4: Backend - Account Settings APIs [MVP]
 
-- [ ] Implement `PUT /settings/password` in `settings.py`: accept `{current_password, new_password}`; verify `current_password` by calling `user_manager.password_helper.verify_and_update(current_password, user.hashed_password)` — use FastAPI Users `PasswordHelper` to avoid re-implementing Argon2 verification; if verification fails, return `INVALID_CREDENTIALS` 401
+- [ ] Implement `PUT /v1/settings/password` in `settings.py`: accept `{current_password, new_password}`; verify `current_password` by calling `user_manager.password_helper.verify_and_update(current_password, user.hashed_password)` — use FastAPI Users `PasswordHelper` to avoid re-implementing Argon2 verification; if verification fails, return `INVALID_CREDENTIALS` 401
 - [ ] On password update: call `user_manager.password_helper.hash(new_password)` to generate new Argon2 hash; update `users.hashed_password` and `users.updated_at`; revoke all sessions EXCEPT the current one by calling `sessions.update_many({user_id: user_id, _id: {$ne: current_session_id}}, {$set: {is_revoked: True}})` — keeps current session active, invalidates all other devices
-- [ ] Implement `GET /settings/linked-accounts`: return `users.providers` array formatted as `[{provider, linked_at, email?}]` per API spec §7 — `email` field only present for Google: read from `users.email` if `providers` contains `"google"` (no separate field in v1 DB schema; use user email as the linked Google email)
-- [ ] Implement `DELETE /settings/linked-accounts/{provider}`: validate `provider` in `["email", "google"]`; if `users.providers.length <= 1`, raise `FORBIDDEN` 403 `{message: "Cannot remove last sign-in method — you would be locked out"}`; else remove provider from `users.providers` array using `$pull`; if removing `"google"`, also set `users.google_id = None`
-- [ ] Write integration test `tests/test_account_settings.py`: PUT `/settings/password` with wrong current password → 401; correct current password → 200, other sessions revoked, current session intact; DELETE linked-account with only one provider → 403; DELETE with two providers → 204, provider removed from array; DELETE non-existent provider → 404
+- [ ] Implement `GET /v1/settings/linked-accounts`: return `users.providers` array formatted as `[{provider, linked_at, email?}]` per API spec §7 — `email` field only present for Google: read from `users.email` if `providers` contains `"google"` (no separate field in v1 DB schema; use user email as the linked Google email)
+- [ ] Implement `DELETE /v1/settings/linked-accounts/{provider}`: validate `provider` in `["email", "google"]`; if `users.providers.length <= 1`, raise `FORBIDDEN` 403 `{message: "Cannot remove last sign-in method — you would be locked out"}`; else remove provider from `users.providers` array using `$pull`; if removing `"google"`, also set `users.google_id = None`
+- [ ] Write integration test `tests/test_account_settings.py`: PUT `/v1/settings/password` with wrong current password → 401; correct current password → 200, other sessions revoked, current session intact; DELETE linked-account with only one provider → 403; DELETE with two providers → 204, provider removed from array; DELETE non-existent provider → 404
 - [ ] Write integration test: PUT `/settings` with `theme: "dark"` → `users.theme: "dark"` in DB; PUT `/settings` with `email_notifications: {meeting_recap_ready: false}` → only that key changed, others unchanged
 - Status: [ ] TODO
 
@@ -65,24 +65,24 @@
 
 ### Task 4.5: Backend - GDPR Data Export [MVP]
 
-- [ ] Implement `POST /settings/export` in `settings.py`: call `export_user_data.delay(str(current_user.id))`, return `202 {data: {message: "Export queued. You'll receive an email within 72 hours."}}` per API spec §7 — do not start export synchronously; return immediately with 202
+- [ ] Implement `POST /v1/settings/export` in `settings.py`: call `export_user_data.delay(str(current_user.id))`, return `202 {data: {message: "Export queued. You'll receive an email within 72 hours."}}` per API spec §7 — do not start export synchronously; return immediately with 202
 - [ ] Create Celery task `export_user_data(user_id: str)` in `backend/app/tasks/gdpr.py`: collect data from MongoDB — `meetings` (host_user_id), `action_items` (assigned_to or created_by), `transcripts` (meeting_id joined through meetings), `chat_messages` (user_id), `users` (profile) — serialize each collection to a JSON list
 - [ ] ⚠️ Include login history from Redis: call `await redis_client.zrangebyscore(f"login_history:{user_id}", "-inf", "+inf")`, parse each JSON entry, serialize full list as `login_history.json` inside the zip — login history lives only in Redis; omitting it is a GDPR data portability gap
 - [ ] Assemble zip in memory: use `zipfile.ZipFile(BytesIO(), "w", zipfile.ZIP_DEFLATED)`, write each dataset as `{collection}.json` — `meetings.json`, `action_items.json`, `chat_messages.json`, `profile.json`, `login_history.json`; upload zip to R2 key `exports/{user_id}/{iso_timestamp}.zip`
 - [ ] Send download email via Resend: generate presigned R2 URL with 7-day expiry using `boto3 generate_presigned_url("get_object", ...)`, call Resend API with subject `"Your MeetIO data export is ready"` and body containing the presigned download link; task retries 3 times with 300s backoff on failure
-- [ ] Write integration test `tests/test_gdpr_export.py`: POST `/settings/export` → 202, Celery task queued with correct `user_id`; write unit test: `export_user_data` task — mock MongoDB collections and Redis login history, assert zip contains all expected files including `login_history.json` with correct entries
+- [ ] Write integration test `tests/test_gdpr_export.py`: POST `/v1/settings/export` → 202, Celery task queued with correct `user_id`; write unit test: `export_user_data` task — mock MongoDB collections and Redis login history, assert zip contains all expected files including `login_history.json` with correct entries
 - Status: [ ] TODO
 
 ---
 
 ### Task 4.6: Backend - GDPR Account Deletion [MVP]
 
-- [ ] Implement `POST /settings/delete-account` in `settings.py`: validate request body `{confirmation: "DELETE MY ACCOUNT"}` — exact string match (case-sensitive); raise `VALIDATION_ERROR` 422 `{message: "Confirmation string must be exactly 'DELETE MY ACCOUNT'"}` if mismatch
+- [ ] Implement `POST /v1/settings/delete-account` in `settings.py`: validate request body `{confirmation: "DELETE MY ACCOUNT"}` — exact string match (case-sensitive); raise `VALIDATION_ERROR` 422 `{message: "Confirmation string must be exactly 'DELETE MY ACCOUNT'"}` if mismatch
 - [ ] On valid confirmation: set `users.is_active = False`, `deletion_requested_at = datetime.utcnow()`, `deletion_scheduled_at = datetime.utcnow() + timedelta(days=30)`; revoke ALL sessions immediately (`sessions.update_many({user_id: user_id}, {$set: {is_revoked: True}})`); call `useAuthStore.logout()` client-side (done via 401 on next request since all sessions revoked); return `200 {data: {message: "Account scheduled for deletion.", deletion_scheduled_at: ...}}`
 - [ ] Implement Celery Beat task `process_pending_deletions()` in `tasks/gdpr.py` (replacing stub from Feature 1 Task 1.4): query `users` where `is_active: False` AND `deletion_scheduled_at <= datetime.utcnow()`; for each user, permanently delete documents across all collections: `sessions`, `meetings` (host records), `participants`, `recaps`, `transcripts`, `action_items`, `chat_messages`, `notifications`, `conversations`, `messages`, `calendar_events`, `gcal_tokens`, `guest_sessions`
 - [ ] In `process_pending_deletions`: delete R2 objects — avatar (`avatars/{user_id}.webp`), recordings (`recordings/` keys linked to user's meetings), exports (`exports/{user_id}/`); delete Redis login history key `login_history:{user_id}`; finally delete `users` document — order matters: delete references before the user record itself
 - [ ] Write unit test `tests/test_gdpr_deletion.py`: wrong confirmation string → 422; correct string → user `is_active: False`, `deletion_scheduled_at` set 30 days in future, all sessions `is_revoked: True`; `process_pending_deletions` — mock all 16 collections, assert delete calls fired for each; assert R2 delete called for avatar and export keys
-- [ ] Write integration test: POST `/settings/delete-account` with correct string → 200; subsequent authenticated API call → 401 (all sessions revoked); simulate 30 days elapsed → purge task → user document and all related documents removed
+- [ ] Write integration test: POST `/v1/settings/delete-account` with correct string → 200; subsequent authenticated API call → 401 (all sessions revoked); simulate 30 days elapsed → purge task → user document and all related documents removed
 - 📐 Schema: `docs/requirements/meetio-db-schema.md#1-users`
 - Status: [ ] TODO
 
@@ -90,8 +90,8 @@
 
 ### Task 4.7: Frontend - Profile & Settings API Service Layer [MVP]
 
-- [ ] Create `frontend/src/lib/profileApi.ts` exporting: `getProfile(): Promise<UserProfile>` → `GET /profile`; `updateProfile(payload: Partial<ProfileUpdate>): Promise<UserProfile>` → `PUT /profile`; `uploadAvatar(file: File): Promise<{avatar_url: string}>` → `POST /profile/avatar` as `multipart/form-data`; `deleteAvatar(): Promise<void>` → `DELETE /profile/avatar` — all via `apiRequest`
-- [ ] Create `frontend/src/lib/settingsApi.ts` (extend from Feature 2's auth functions): add `getSettings(): Promise<UserSettings>` → `GET /settings`; `updateSettings(payload): Promise<UserSettings>` → `PUT /settings`; `changePassword(currentPassword, newPassword): Promise<void>` → `PUT /settings/password`; `getLinkedAccounts(): Promise<LinkedAccountsResponse>` → `GET /settings/linked-accounts`; `deleteLinkedAccount(provider): Promise<void>` → `DELETE /settings/linked-accounts/{provider}`; `requestDataExport(): Promise<void>` → `POST /settings/export`; `deleteAccount(confirmation): Promise<{deletion_scheduled_at: string}>` → `POST /settings/delete-account`
+- [ ] Create `frontend/src/lib/profileApi.ts` exporting: `getProfile(): Promise<UserProfile>` → `GET /v1/profile`; `updateProfile(payload: Partial<ProfileUpdate>): Promise<UserProfile>` → `PUT /v1/profile`; `uploadAvatar(file: File): Promise<{avatar_url: string}>` → `POST /v1/profile/avatar` as `multipart/form-data`; `deleteAvatar(): Promise<void>` → `DELETE /v1/profile/avatar` — all via `apiRequest`
+- [ ] Create `frontend/src/lib/settingsApi.ts` (extend from Feature 2's auth functions): add `getSettings(): Promise<UserSettings>` → `GET /v1/settings`; `updateSettings(payload): Promise<UserSettings>` → `PUT /v1/settings`; `changePassword(currentPassword, newPassword): Promise<void>` → `PUT /v1/settings/password`; `getLinkedAccounts(): Promise<LinkedAccountsResponse>` → `GET /v1/settings/linked-accounts`; `deleteLinkedAccount(provider): Promise<void>` → `DELETE /v1/settings/linked-accounts/{provider}`; `requestDataExport(): Promise<void>` → `POST /v1/settings/export`; `deleteAccount(confirmation): Promise<{deletion_scheduled_at: string}>` → `POST /v1/settings/delete-account`
 - [ ] Define TypeScript types in `frontend/src/types/profile.ts`: `UserProfile: {user_id, display_name, email, avatar_url, avatar_type, timezone, language, created_at}`; `UserSettings: {timezone, language, theme, email_notifications: EmailNotificationSettings}`; `LinkedAccount: {provider, linked_at, email?}`
 - [ ] Add profile and settings state to `useAuthStore` or create a dedicated `useProfileStore`: `profile: UserProfile | null`, `settings: UserSettings | null`, `isUpdatingProfile: boolean`, `updateProfileError: string | null` — actions `fetchProfile()`, `updateProfile(payload)`, `updateSettings(payload)`, `uploadAvatar(file)`, `deleteAvatar()`
 - [ ] Write unit tests `tests/profileApi.test.ts` (Vitest + MSW): `uploadAvatar` sends correct `multipart/form-data` request with `file` field; `deleteAvatar` sends DELETE; `updateSettings` sends only provided fields (no null fields in body)
@@ -125,8 +125,8 @@
 ### Task 4.10: Frontend - Account Settings Page (Core) [MVP]
 
 - [ ] Create `frontend/src/pages/SettingsPage.tsx` at route `/settings`: renders tabbed or section-based layout with sections: `Account`, `Preferences`, `Security` (sessions + login history from Feature 3), `Privacy` (GDPR export + delete); each section lazy-loads its data when tab is activated to avoid fetching all settings on mount
-- [ ] Implement `Account` section: render password change form (`current_password`, `new_password`, `confirm_new_password` inputs); validate `new_password` ≥8 chars with uppercase and number; validate `confirm_new_password === new_password`; on submit call `changePassword()`; show success toast `"Password updated. Other sessions have been signed out."` on 200; show `"Incorrect current password"` inline error on 401
-- [ ] Implement linked accounts subsection within `Account`: list providers with `GET /settings/linked-accounts`; each provider row shows provider name, `linked_at` date, and `"Unlink"` button; show `"Add Google account"` button if Google not linked; `"Unlink"` button disabled with tooltip `"Cannot remove your only sign-in method"` if provider count is 1
+- [ ] Implement `Account` section: render password change form (`current_password`, `new_password`, `confirm_new_password` inputs); validate `new_password` ≥8 chars with uppercase, number, and special character; validate `confirm_new_password === new_password`; on submit call `changePassword()`; show success toast `"Password updated. Other sessions have been signed out."` on 200; show `"Incorrect current password"` inline error on 401
+- [ ] Implement linked accounts subsection within `Account`: list providers with `GET /v1/settings/linked-accounts`; each provider row shows provider name, `linked_at` date, and `"Unlink"` button; show `"Add Google account"` button if Google not linked; `"Unlink"` button disabled with tooltip `"Cannot remove your only sign-in method"` if provider count is 1
 - [ ] Implement `Preferences` section: `theme` toggle (Light / Dark / System, 3-button toggle group), `timezone` select, `language` select — all call `updateSettings()` on change with debounce 500ms; show saved indicator per-field
 - [ ] Write unit test: `SettingsPage` password form — submit with mismatched confirm → no API call, inline error shown; submit with valid fields → `changePassword` called; `SettingsPage` linked accounts — single provider → Unlink button disabled; two providers → Unlink button enabled
 - Status: [ ] TODO
@@ -152,7 +152,7 @@
 - [ ] Implement profile visibility selector in `ProfilePage.tsx` (hidden until relevant — no public profile pages in v1)
 - [ ] Track `display_name_history: list[{name, changed_at}]` in `users` document for meeting participant name consistency across renamed accounts
 - [ ] Surface display name history in profile page as a collapsible `"Name history"` section
-- [ ] Add `GET /profile/{user_id}` public endpoint that respects `visibility` setting — returns full profile for `"public"`, 403 for `"private"`, and checks contact relationship for `"contacts_only"`
+- [ ] Add `GET /v1/profile/{user_id}` public endpoint that respects `visibility` setting — returns full profile for `"public"`, 403 for `"private"`, and checks contact relationship for `"contacts_only"`
 - Status: TODO
 
 ---
@@ -168,9 +168,9 @@
 ## Execution Order
 
 1. **Backend Foundation:** 4.1 (Profile service — validation, partial update, cache invalidation)
-2. **Backend APIs:** 4.2 (GET/PUT /profile + GET/PUT /settings)
-3. **Backend Avatar:** 4.3 (POST /profile/avatar with Pillow WebP + R2 upload + DELETE)
-4. **Backend Account:** 4.4 (PUT /settings/password + linked accounts GET/DELETE)
+2. **Backend APIs:** 4.2 (GET/PUT /v1/profile + GET/PUT /v1/settings)
+3. **Backend Avatar:** 4.3 (POST /v1/profile/avatar with Pillow WebP + R2 upload + DELETE)
+4. **Backend Account:** 4.4 (PUT /v1/settings/password + linked accounts GET/DELETE)
 5. **Backend GDPR:** 4.5 → 4.6 (Data export Celery task → Account deletion + purge task)
 6. **Frontend Service Layer:** 4.7 (profileApi.ts + extended settingsApi.ts + store)
 7. **Frontend Core Pages:** 4.8 → 4.9 (Profile page → Avatar upload component)
