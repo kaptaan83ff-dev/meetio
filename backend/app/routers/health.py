@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from redis.asyncio import Redis
 from app.db import get_db
 from app.redis import get_redis
 from app.celery_app import app as celery_app
+from app.routers._envelope import fail, ok
 
 router = APIRouter(tags=["Health"])
 
@@ -33,6 +34,7 @@ async def check_celery() -> bool:
 
 @router.get("/health")
 async def health_check(
+    request: Request,
     db: AsyncIOMotorDatabase = Depends(get_db),
     redis: Redis = Depends(get_redis)
 ):
@@ -46,25 +48,17 @@ async def health_check(
     
     all_ok = all([mongo_ok, redis_ok, celery_ok])
     
-    response_data = {
-        "success": all_ok,
-        "data": {
-            "status": "ok" if all_ok else "degraded",
-            "checks": {
-                "mongodb": mongo_ok,
-                "redis": redis_ok,
-                "celery": celery_ok
-            }
-        },
-        "meta": {
-            "version": "0.1.0"
-        }
-    }
-    
+    checks = {"mongodb": mongo_ok, "redis": redis_ok, "celery": celery_ok}
+
     if all_ok:
-        return response_data
-    
+        return ok(data={"status": "ok", "checks": checks}, request=request)
+
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        content=response_data
+        content=fail(
+            code="SERVICE_DEGRADED",
+            message="One or more dependencies are unhealthy.",
+            request=request,
+        )
+        | {"data": {"status": "degraded", "checks": checks}},
     )

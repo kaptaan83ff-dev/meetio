@@ -3,34 +3,51 @@ from httpx import AsyncClient
 from app.main import app
 
 @pytest.mark.asyncio
-async def test_health_check_endpoint():
-    """
-    Test that the health check endpoint returns a successful response.
-    Note: This assumes DB and Redis are reachable in the test environment.
-    """
+async def test_health_check_endpoint(monkeypatch):
     from httpx import ASGITransport
+    from app.db import get_db
+    from app.redis import get_redis
+    from app.routers import health as health_router
+
+    async def fake_check_mongodb(db):
+        return True
+
+    async def fake_check_redis(redis):
+        return True
+
+    async def fake_check_celery():
+        return True
+
+    app.dependency_overrides[get_db] = lambda: object()
+    app.dependency_overrides[get_redis] = lambda: object()
+    monkeypatch.setattr(health_router, "check_mongodb", fake_check_mongodb)
+    monkeypatch.setattr(health_router, "check_redis", fake_check_redis)
+    monkeypatch.setattr(health_router, "check_celery", fake_check_celery)
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         response = await ac.get("/health")
-    
-    # We expect 200 if everything is up, or 503 if Celery worker is not running
-    # Since we are in a test env without a worker, it might be 503
-    assert response.status_code in [200, 503]
-    
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+
     data = response.json()
-    assert data["success"] in [True, False]
+    assert set(data.keys()) == {"success", "data", "error", "meta"}
+    assert isinstance(data["meta"].get("timestamp"), str)
+    assert isinstance(data["meta"].get("request_id"), str)
     assert "checks" in data["data"]
-    assert "mongodb" in data["data"]["checks"]
-    assert "redis" in data["data"]["checks"]
-    assert "celery" in data["data"]["checks"]
+    assert set(data["data"]["checks"].keys()) == {"mongodb", "redis", "celery"}
+    assert data["success"] is True
+    assert data["error"] is None
+    assert data["data"]["status"] == "ok"
 
 @pytest.mark.asyncio
 async def test_health_check_mongodb_only():
-    """
-    Test individual health check functions could be mocked if needed.
-    """
     from app.routers.health import check_mongodb
-    from app.db import Database
-    
-    db = Database.get_db()
-    status = await check_mongodb(db)
+
+    class FakeDb:
+        async def command(self, _name):
+            return {"ok": 1.0}
+
+    status = await check_mongodb(FakeDb())
     assert status is True

@@ -1,4 +1,4 @@
-# GitHub Repository Secrets
+﻿# GitHub Repository Secrets
 
 The following secrets must be configured in your GitHub repository (`Settings > Secrets and variables > Actions`) for the CI/CD pipeline to function.
 
@@ -22,3 +22,4 @@ If your integration tests require other services, you may need:
 
 > [!IMPORTANT]
 > Ensure that your MongoDB Atlas "Network Access" allows connections from GitHub Actions IP ranges, or use a specific whitelist if you have a proxy.
+

@@ -1,8 +1,9 @@
-# MeetIO — API Specification
+﻿# MeetIO — API Specification
 > **Version:** 1.0
-> **Base URL:** `https://api.meetio.app/v1`
-> **Auth:** Library-managed (FastAPI Users). HttpOnly cookies (`fastapiusersauth`).
-> **Auth Strategy:** JWT strategy with Cookie transport.
+> **Base URL:** `https://api.meetio.app`
+> **Versioning:** URL-based (`/v1/...`)
+> **Auth:** Library-managed (FastAPI Users). HttpOnly cookies (`fastapiusersauth` for primary auth, `refresh_token` for refresh rotation).
+> **Auth Strategy:** FastAPI Users with CookieTransport + DatabaseStrategy.
 > **Envelope:** Every response wraps in `{ success, data, error, meta }` — see §0.
 
 ---
@@ -50,6 +51,7 @@
 | `DEEPGRAM_UNAVAILABLE` | 503 | Deepgram service error |
 | `LLM_UNAVAILABLE` | 503 | AI provider error |
 | `INTERNAL_ERROR` | 500 | Unhandled exception |
+| `HTTP_ERROR` | 400 | Library-raised generic error (avoid for custom endpoints) |
 
 ### Pagination
 
@@ -71,7 +73,7 @@ Default `limit` = 20. Max = 100.
 | Symbol | Meaning |
 |---|---|
 | `—` | No auth required |
-| `🔑` | `access_token` cookie required |
+| `🔑` | Primary auth cookie required |
 | `🔑 Host` | Auth + must be meeting host |
 | `🔑 Host/Co-host` | Auth + must be host or co-host |
 | `🎫` | Refresh token cookie only |
@@ -82,15 +84,16 @@ Default `limit` = 20. Max = 100.
 ## 1. Auth
 
 > Auth Strategy: FastAPI Users with CookieTransport + DatabaseStrategy.
+> Cookie convention: `fastapiusersauth` is the primary auth cookie; `refresh_token` is separate and used only by `POST /v1/auth/refresh`.
 > Routes marked [FU] are managed by FastAPI Users.
 > Routes marked [Custom] are additions on top of the library.
 >
-> GET /auth/users/me        — [FU] Profile management.
-> POST /auth/verify         — [FU] Email verification via token link.
-> POST /auth/forgot-password — [FU] Request password reset link.
-> POST /auth/reset-password  — [FU] Complete password reset with token.
+> GET /v1/auth/users/me         — [FU] Profile management.
+> POST /v1/auth/verify          — [FU] Email verification via token link.
+> POST /v1/auth/forgot-password — [FU] Request password reset link.
+> POST /v1/auth/reset-password  — [FU] Complete password reset with token.
 
-### `POST /auth/register`  # FastAPI Users default - rename or override path`
+### `POST /v1/auth/register`  # FastAPI Users default - rename or override path`
 Auth: `—`
 
 Register a new user. Inherits validation from `fastapi-users`. Triggers `on_after_register` for email verification.
@@ -120,7 +123,7 @@ Register a new user. Inherits validation from `fastapi-users`. Triggers `on_afte
 
 ---
 
-### `POST /auth/login`         # FastAPI Users default (form data: username + password)`
+### `POST /v1/auth/login`         # FastAPI Users default (form data: username + password)`
 Auth: `—`
 
 Sign in with email and password. Managed by `fastapi-users` OAuth2 password flow.
@@ -138,7 +141,7 @@ Success sets the auth cookie.
 
 ---
 
-### `POST /auth/2fa/verify`
+### `POST /v1/auth/2fa/verify`
 Auth: `—`
 
 Completes sign-in for accounts with TOTP 2FA enabled.
@@ -166,13 +169,13 @@ Completes sign-in for accounts with TOTP 2FA enabled.
 }
 ```
 
-Sets `access_token` and `refresh_token` cookies on success.
+Sets the primary auth cookie and the `refresh_token` cookie on success.
 
 **Errors:** `INVALID_OTP` 400, `OTP_LOCKED` 429 (5 attempts), `NOT_FOUND` 404 (totp_session_id expired)
 
 ---
 
-### `POST /auth/logout`        # FastAPI Users default
+### `POST /v1/auth/logout`        # FastAPI Users default
 Auth: `🔑`
 
 Logs out the user and clears auth cookies.
@@ -181,10 +184,10 @@ Logs out the user and clears auth cookies.
 
 ---
 
-### `POST /auth/refresh`
+### `POST /v1/auth/refresh`
 Auth: `🎫`
 
-Issues a new access token using the refresh token cookie. Rotates the refresh token (single-use).
+Issues a new primary auth session using the `refresh_token` cookie. Rotates the refresh token (single-use).
 
 **Request:** empty body
 
@@ -193,13 +196,13 @@ Issues a new access token using the refresh token cookie. Rotates the refresh to
 { "data": { "message": "Token refreshed." } }
 ```
 
-Sets new `access_token` cookie. Old refresh token invalidated; new one set.
+Sets the refreshed primary auth cookie and a new `refresh_token` cookie. Old refresh token is invalidated; new one is set.
 
 **Errors:** `TOKEN_EXPIRED` 401, `TOKEN_INVALID` 401
 
 ---
 
-### `GET /auth/google/authorize`
+### `GET /v1/auth/google/authorize`
 Auth: `—`
 
 Redirects the browser to Google's OAuth consent screen.
@@ -208,7 +211,7 @@ Redirects the browser to Google's OAuth consent screen.
 
 ---
 
-### `GET /auth/google/callback`
+### `GET /v1/auth/google/callback`
 Auth: `—`
 
 Google OAuth callback. Handled by `fastapi-users`. Creates or links account, sets cookies, redirects to app.
@@ -219,7 +222,7 @@ Google OAuth callback. Handled by `fastapi-users`. Creates or links account, set
 
 ---
 
-### `POST /auth/verify`         # [FU]
+### `POST /v1/auth/verify`         # [FU]
 Auth: `—`
 
 Verifies an email address using a token from a verification link. Handled by `fastapi-users`.
@@ -247,7 +250,7 @@ Verifies an email address using a token from a verification link. Handled by `fa
 
 ---
 
-### `POST /auth/forgot-password`
+### `POST /v1/auth/forgot-password`
 Auth: `—`
 
 Initiates password reset via `fastapi-users`. Sends reset token to email.
@@ -262,7 +265,7 @@ Accepted.
 
 ---
 
-### `POST /auth/reset-password`
+### `POST /v1/auth/reset-password`
 Auth: `—`
 
 Completes password reset using a token.
@@ -924,7 +927,7 @@ Returns in-meeting chat history.
 ---
 
 ### `POST /meetings/{id}/chat`
-Auth: `—` (session_token for guests, access_token cookie for auth users)
+Auth: `—` (session_token for guests, primary auth cookie for auth users)
 
 Sends a chat message.
 
@@ -1558,7 +1561,7 @@ Updates only the status of an action item. Any participant can update status of 
 
 ## 7. Settings
 
-### `GET /settings`
+### `GET /v1/settings`
 Auth: `🔑`
 
 **Response `200`**
@@ -1581,7 +1584,7 @@ Auth: `🔑`
 
 ---
 
-### `PUT /settings`
+### `PUT /v1/settings`
 Auth: `🔑`
 
 Updates user settings. All fields optional.
@@ -1601,7 +1604,7 @@ Updates user settings. All fields optional.
 
 ---
 
-### `PUT /settings/password`
+### `PUT /v1/settings/password`
 Auth: `🔑`
 
 Changes the user's password. Requires current password.
@@ -1623,7 +1626,7 @@ Changes the user's password. Requires current password.
 
 ---
 
-### `POST /settings/2fa`
+### `POST /v1/settings/2fa`
 Auth: `🔑`
 
 Enables or disables TOTP-based 2FA.
@@ -1651,7 +1654,7 @@ Enables or disables TOTP-based 2FA.
 
 ---
 
-### `GET /settings/sessions`
+### `GET /v1/settings/sessions`
 Auth: `🔑`
 
 Returns all active sessions.
@@ -1679,7 +1682,7 @@ Returns all active sessions.
 
 ---
 
-### `DELETE /settings/sessions/{id}`
+### `DELETE /v1/settings/sessions/{id}`
 Auth: `🔑`
 
 Revokes a session. The device using that session will be signed out within 30 seconds via WebSocket `session.revoked` event.
@@ -1690,7 +1693,7 @@ Revokes a session. The device using that session will be signed out within 30 se
 
 ---
 
-### `GET /settings/login-history`
+### `GET /v1/settings/login-history`
 Auth: `🔑`
 
 Returns last 90 days of login events.
@@ -1715,7 +1718,7 @@ Returns last 90 days of login events.
 
 ---
 
-### `GET /settings/linked-accounts`
+### `GET /v1/settings/linked-accounts`
 Auth: `🔑`
 
 **Response `200`**
@@ -1732,7 +1735,7 @@ Auth: `🔑`
 
 ---
 
-### `DELETE /settings/linked-accounts/{provider}`
+### `DELETE /v1/settings/linked-accounts/{provider}`
 Auth: `🔑`
 
 Unlinks a sign-in provider. Cannot unlink the last remaining provider (user would be locked out).
@@ -1743,7 +1746,7 @@ Unlinks a sign-in provider. Cannot unlink the last remaining provider (user woul
 
 ---
 
-### `POST /settings/export`
+### `POST /v1/settings/export`
 Auth: `🔑`
 
 Requests a GDPR data export. Zip file generated within 72 hours; download link sent via email.
@@ -1755,7 +1758,7 @@ Requests a GDPR data export. Zip file generated within 72 hours; download link s
 
 ---
 
-### `POST /settings/delete-account`
+### `POST /v1/settings/delete-account`
 Auth: `🔑`
 
 Initiates the 30-day soft-delete window.
@@ -1779,7 +1782,7 @@ Initiates the 30-day soft-delete window.
 
 ## 8. Profile
 
-### `GET /profile`
+### `GET /v1/profile`
 Auth: `🔑`
 
 **Response `200`**
@@ -1800,7 +1803,7 @@ Auth: `🔑`
 
 ---
 
-### `PUT /profile`
+### `PUT /v1/profile`
 Auth: `🔑`
 
 Updates profile fields. All optional.
@@ -1818,7 +1821,7 @@ Updates profile fields. All optional.
 
 ---
 
-### `POST /profile/avatar`
+### `POST /v1/profile/avatar`
 Auth: `🔑`
 
 Uploads a new avatar. Accepts `multipart/form-data`. Server re-encodes to WebP before storage.
@@ -1834,7 +1837,7 @@ Uploads a new avatar. Accepts `multipart/form-data`. Server re-encodes to WebP b
 
 ---
 
-### `DELETE /profile/avatar`
+### `DELETE /v1/profile/avatar`
 Auth: `🔑`
 
 Removes the current avatar. Reverts to default.
@@ -1845,7 +1848,7 @@ Removes the current avatar. Reverts to default.
 
 ## 9. Notifications
 
-### `GET /notifications`
+### `GET /v1/notifications`
 Auth: `🔑`
 
 Returns the 20 most recent notifications.
@@ -1946,12 +1949,12 @@ Receives LiveKit room and egress events. See TRD §11.2 for event handling logic
 ## 11. WebSocket
 
 ### `wss://api.meetio.app/ws`
-Auth: `access_token` cookie on HTTP upgrade request.
+Auth: primary auth cookie on HTTP upgrade request.
 
 **Connection:**
 ```javascript
 const ws = new WebSocket("wss://api.meetio.app/ws");
-// access_token cookie is sent automatically with the HTTP upgrade request
+// primary auth cookie is sent automatically with the HTTP upgrade request
 ```
 
 **Keepalive:** Client sends `ping` every 30s. Server replies `pong`. Connection closed after 90s silence.
@@ -1998,3 +2001,4 @@ const ws = new WebSocket("wss://api.meetio.app/ws");
 _Version: 1.0_
 _Last Updated: April 30, 2026_
 _Derived from: MeetIO PRD v2.0, TRD v2.0_
+

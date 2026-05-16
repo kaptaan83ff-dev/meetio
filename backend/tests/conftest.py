@@ -1,7 +1,16 @@
+import sys
+from pathlib import Path
+
 import pytest
+
+# Ensure tests import the local `backend/app` package from THIS workspace,
+# even if another editable install exists on the machine.
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BACKEND_DIR))
+
 from app.db import Database
+from app.lib.rate_limit import reset_in_memory_rate_limits
 from app.redis import RedisManager
-import asyncio
 
 @pytest.fixture(autouse=True)
 async def reset_singletons():
@@ -13,5 +22,6 @@ async def reset_singletons():
     """
     yield
     # Close and reset after the test finishes
+    reset_in_memory_rate_limits()
     Database.close()
     await RedisManager.close()

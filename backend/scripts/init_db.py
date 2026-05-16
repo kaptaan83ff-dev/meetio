@@ -2,6 +2,27 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import settings
 
+
+async def ensure_optional_unique_index(collection, field: str) -> None:
+    index_name = f"{field}_1"
+    expected_partial_filter = {field: {"$type": "string"}}
+    existing_indexes = await collection.index_information()
+    existing_index = existing_indexes.get(index_name)
+
+    if existing_index:
+        is_unique = existing_index.get("unique") is True
+        partial_filter = existing_index.get("partialFilterExpression")
+        if not is_unique or partial_filter != expected_partial_filter:
+            await collection.drop_index(index_name)
+            print(f"  [~] Recreated {collection.name}.{index_name} as partial unique index")
+
+    await collection.create_index(
+        field,
+        unique=True,
+        partialFilterExpression=expected_partial_filter,
+    )
+
+
 async def init_db():
     print(f"--- Python DB Initializer ---")
     print(f"Connecting to: {settings.MONGODB_URI.split('@')[-1]}")
@@ -30,12 +51,12 @@ async def init_db():
     
     # 1. users
     await db.users.create_index("email", unique=True)
-    await db.users.create_index("google_id", sparse=True, unique=True)
+    await ensure_optional_unique_index(db.users, "google_id")
     await db.users.create_index([("is_active", 1), ("deletion_scheduled_at", 1)])
 
     # 2. sessions
     await db.sessions.create_index([("user_id", 1), ("is_revoked", 1)])
-    await db.sessions.create_index("refresh_token_hash", unique=True)
+    await ensure_optional_unique_index(db.sessions, "refresh_token_hash")
     await db.sessions.create_index("expires_at", expireAfterSeconds=0)
 
     # 3. meetings

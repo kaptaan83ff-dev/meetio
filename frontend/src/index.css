@@ -22,4 +22,517 @@
     background-image: radial-gradient(circle at center, rgba(10, 10, 10, 0.08) 1.5px, transparent 1.5px);
     background-size: 20px 20px;
   }
+
+  .auth-toast-enter {
+    animation: authToastIn 0.3s cubic-bezier(0.21, 1.02, 0.73, 1) both;
+  }
+
+  .auth-toast-exit {
+    animation: authToastOut 0.25s cubic-bezier(0.55, 0, 0.95, 0.45) forwards;
+  }
+
+  .auth-toast-progress {
+    animation: authToastProgress linear forwards;
+  }
+}
+
+@keyframes authToastIn {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes authToastOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+    max-height: 300px;
+  }
+
+  to {
+    transform: translateX(120%);
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
+
+@keyframes authToastProgress {
+  from {
+    width: 100%;
+  }
+
+  to {
+    width: 0%;
+  }
+}
+
+@keyframes logoJiggle {
+  0% {
+    transform: rotate(0deg) scale(1.1);
+  }
+
+  25% {
+    transform: rotate(-10deg) scale(1.1);
+  }
+
+  75% {
+    transform: rotate(10deg) scale(1.1);
+  }
+
+  100% {
+    transform: rotate(0deg) scale(1.1);
+  }
+}
+
+.notification-ping::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: #ff4f8b;
+  animation: notificationPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.notification-ping::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #0a0a0a;
+  border-radius: 9999px;
+  background: #ff4f8b;
+}
+
+@keyframes notificationPing {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes meetioBugShake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  10% {
+    transform: rotate(-5deg);
+  }
+
+  20% {
+    transform: rotate(5deg);
+  }
+
+  30% {
+    transform: rotate(-3deg);
+  }
+
+  40% {
+    transform: rotate(3deg);
+  }
+
+  50% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes meetioGlitch {
+  0% {
+    transform: translate(0);
+  }
+
+  20% {
+    transform: translate(-3px, 3px);
+  }
+
+  40% {
+    transform: translate(-3px, -3px);
+  }
+
+  60% {
+    transform: translate(3px, 3px);
+  }
+
+  80% {
+    transform: translate(3px, -3px);
+  }
+
+  100% {
+    transform: translate(0);
+  }
+}
+
+@keyframes meetioGlitchSkew {
+  0% {
+    transform: skew(0deg);
+  }
+
+  20% {
+    transform: skew(-2deg);
+  }
+
+  40% {
+    transform: skew(2deg);
+  }
+
+  60% {
+    transform: skew(-1deg);
+  }
+
+  80% {
+    transform: skew(1deg);
+  }
+
+  100% {
+    transform: skew(0deg);
+  }
+}
+
+@keyframes meetioGlitchColor {
+  0% {
+    text-shadow: 2px 0 #ff4f8b, -2px 0 #0052ff;
+  }
+
+  25% {
+    text-shadow: -2px 0 #ff4f8b, 2px 0 #0052ff;
+  }
+
+  50% {
+    text-shadow: 2px 2px #ff4f8b, -2px -2px #0052ff;
+  }
+
+  75% {
+    text-shadow: -2px 2px #ff4f8b, 2px -2px #0052ff;
+  }
+
+  100% {
+    text-shadow: 2px 0 #ff4f8b, -2px 0 #0052ff;
+  }
+}
+
+@keyframes meetioFlicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.85;
+  }
+
+  75% {
+    opacity: 0.95;
+  }
+}
+
+@keyframes meetioBlink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes meetioPulseError {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes meetioScanline {
+  0% {
+    transform: translateY(-100%);
+  }
+
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+.meetio-glitch-text {
+  position: relative;
+  display: inline-block;
+  animation: meetioGlitch 0.3s infinite, meetioGlitchColor 0.5s infinite, meetioGlitchSkew 0.4s infinite, meetioFlicker 2s infinite;
+}
+
+.meetio-glitch-text::before,
+.meetio-glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.meetio-glitch-text::before {
+  color: #ff4f8b;
+  animation: meetioGlitch 0.3s reverse infinite;
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+  transform: translate(-2px);
+}
+
+.meetio-glitch-text::after {
+  color: #0052ff;
+  animation: meetioGlitch 0.3s infinite;
+  clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+  transform: translate(2px);
+}
+
+.meetio-bug-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  color: #ffe500;
+  font-size: 100px;
+  animation: meetioBugShake 3s ease-in-out infinite;
+  line-height: 1;
+  overflow: visible;
+  vertical-align: -0.125em;
+}
+
+.meetio-scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.03) 1px, transparent 1px, transparent 2px);
+}
+
+.meetio-scanline-moving {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9997;
+  width: 100%;
+  height: 4px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(255, 71, 139, 0.15), transparent);
+  animation: meetioScanline 4s linear infinite;
+}
+
+.meetio-404-page {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+  padding: 48px;
+  background-color: #fff1e6;
+  color: #0a0a0a;
+}
+
+.meetio-404-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 900px;
+}
+
+.meetio-404-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 64px;
+  align-items: center;
+}
+
+.meetio-illustration-section {
+  position: relative;
+}
+
+.meetio-illustration-box {
+  position: relative;
+  border: 3px solid #0a0a0a;
+  background: #0a0a0a;
+  padding: 50px 40px;
+  text-align: center;
+  box-shadow: 12px 12px 0 0 rgba(10, 10, 10, 0.25);
+}
+
+.meetio-illustration-badge {
+  position: absolute;
+  border: 2px solid #0a0a0a;
+  padding: 8px 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.meetio-illustration-badge-top {
+  top: -12px;
+  right: -16px;
+  transform: rotate(5deg);
+  background: #ff4f8b;
+  color: #ffffff;
+}
+
+.meetio-illustration-badge-bottom {
+  bottom: -12px;
+  left: -16px;
+  transform: rotate(-5deg);
+  background: #c6ff3d;
+  color: #0a0a0a;
+}
+
+.meetio-404-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.meetio-error-code-large {
+  margin-bottom: 16px;
+  color: #0a0a0a;
+  font-family: 'Archivo Black', sans-serif;
+  font-size: clamp(72px, 10vw, 120px);
+  line-height: 0.9;
+  letter-spacing: -10px;
+}
+
+.meetio-status-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 10px;
+  margin-bottom: 24px;
+  border: 2px solid #0a0a0a;
+  background: #0a0a0a;
+  padding: 10px 20px;
+  color: #ff4f8b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  box-shadow: 4px 4px 0 0 #ff4f8b;
+  animation: meetioPulseError 1.5s ease-in-out infinite;
+}
+
+.meetio-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #ff4f8b;
+  animation: meetioBlink 0.8s ease-in-out infinite;
+}
+
+.meetio-action-buttons-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.meetio-action-buttons-row > * {
+  min-width: 180px;
+}
+
+@media (max-width: 1024px) {
+  .meetio-404-grid {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+
+  .meetio-illustration-section {
+    order: -1;
+    text-align: center;
+  }
+
+  .meetio-illustration-box {
+    display: inline-block;
+    width: auto;
+  }
+
+  .meetio-404-content {
+    text-align: center;
+  }
+
+  .meetio-error-code-large,
+  .meetio-status-badge {
+    align-self: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .meetio-404-page {
+    padding: 32px;
+  }
+
+  .meetio-error-code-large {
+    font-size: 64px;
+    letter-spacing: -6px;
+  }
+
+  .meetio-bug-icon {
+    font-size: 70px;
+  }
+
+  .meetio-illustration-box {
+    padding: 30px 35px;
+  }
+
+  .meetio-illustration-badge {
+    display: none;
+  }
+
+  .meetio-action-buttons-row {
+    flex-direction: column;
+  }
+
+  .meetio-action-buttons-row > * {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .meetio-404-page {
+    padding: 28px 20px;
+  }
+
+  .meetio-error-code-large {
+    font-size: 52px;
+    letter-spacing: -4px;
+  }
+
+  .meetio-status-badge {
+    padding: 8px 14px;
+    font-size: 10px;
+  }
+
+  .meetio-illustration-box {
+    padding: 28px 24px;
+  }
 }

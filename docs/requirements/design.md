@@ -1,4 +1,4 @@
-# Design System: MeetIO
+﻿# Design System: MeetIO
 
 ## 1. Visual Theme & Atmosphere
 
@@ -196,3 +196,4 @@ Whitespace is not "empty" in this system; it is often filled with a **dot-grid t
 2. _"Design a 'Ledger' window card: 3px solid `#0a0a0a` border, sharp corners. A 32px header bar with three dots on the left (Pink, Yellow, Lime). Inside, a white background with a radial-gradient dot grid pattern (1.5px dots, 20px apart, 0.08 opacity)."_
 3. _"Build a hero headline: 'WE BUILD ENTERTAINMENT' in 120px Archivo Black, line-height 0.9, letter-spacing -2.3px, color `#0a0a0a`. Place on a `#fff1e6` background with a dot-grid texture."_
 4. _"Create a section kicker label: 'DIVISION • 01 / 04' in 12px Archivo Black, uppercase, color `#0a0a0a` at 0.6 opacity, tracking-wider."_
+

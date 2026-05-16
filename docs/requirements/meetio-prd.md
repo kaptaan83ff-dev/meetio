@@ -1,4 +1,4 @@
-# MeetIO — Product Requirements Document
+﻿# MeetIO — Product Requirements Document
 
 > **Version:** 1.0 (patched)
 > **Status:** Current
@@ -1077,8 +1077,10 @@ class GuestSession(BaseModel):
 
 | Method           | How It Works                                             | Email Verification Required       |
 | ---------------- | -------------------------------------------------------- | --------------------------------- |
-| Email / Password | Traditional signup with a 6-digit OTP code sent to email | Yes — OTP required                |
+| Email / Password | Traditional signup with an email verification link and token | Yes — verify account before first sign-in |
 | Google OAuth     | Sign in with Google account                              | Automatic — Google verifies email |
+
+**2FA is separate from signup verification:** MeetIO uses TOTP codes from an authenticator app for second-factor authentication, not email OTP codes.
 
 > GitHub OAuth is not in v1. Only email/password and Google OAuth are supported.
 
@@ -1112,6 +1114,11 @@ User enters email + password + name
 
 Sign in:
 User enters email + password → verified → logged in
+
+Forgot password:
+User enters email
+→ Reset link sent to their email
+→ User opens link → sets a new password
 ```
 
 ### 7.5 Provider Linking — All Scenarios
@@ -1119,24 +1126,25 @@ User enters email + password → verified → logged in
 **Scenario A: Email/password account exists, user tries Google with same email**
 
 ```
-→ OTP sent: "Verify it's you to link Google to your account"
-→ OTP verified → Google linked → logged in
-→ Toast: "Google account linked. Want to import your Google name and photo?"
-  [Import from Google]  [Keep current]
+→ Google account is verified by Google
+→ MeetIO finds an existing account with the same email
+→ Google provider is linked to the existing account
+→ Logged in with both email and Google available
 ```
 
 **Scenario B: Google-only account, user tries email/password registration**
 
 ```
-→ OTP sent: "You previously signed in with Google. Verify to add a password."
-→ OTP verified → password saved → logged in
+→ User signs in with Google and opens Settings
+→ Adds a password from the account security area
+→ Password save is confirmed after the user re-authenticates
 ```
 
 **Scenario C: Google-only account, user goes to /forgot-password**
 
 ```
 → Response: "You signed in with Google."
-  [Sign in with Google]  [Add a password via OTP]
+  [Sign in with Google]  [Add a password from Settings]
 ```
 
 ### 7.6 Account State Matrix
@@ -1166,9 +1174,9 @@ User enters email + password → verified → logged in
 
 ### 8.1 Token Configuration
 
-MeetIO uses secure JWT tokens stored in HttpOnly cookies managed by **FastAPI Users**.
+MeetIO uses secure auth cookies managed by **FastAPI Users**.
 
-**Storage:** Both tokens (if using dual-token strategy) or the unified auth cookie are stored in HttpOnly cookies — they are invisible to JavaScript and cannot be stolen by browser scripts.
+**Storage:** The primary auth cookie and the dedicated refresh cookie are both stored in HttpOnly cookies — they are invisible to JavaScript and cannot be stolen by browser scripts.
 
 ### 8.2 Concurrent Sessions Policy
 
@@ -1177,13 +1185,15 @@ MeetIO uses secure JWT tokens stored in HttpOnly cookies managed by **FastAPI Us
 - Each device/browser gets its own independent session.
 - Revoking one session does not affect others.
 - **Exception:** Changing password or resetting password invalidates all sessions on all devices — the user must sign in again everywhere.
+- Session revocation uses the dedicated refresh token cookie and the server-side session record, so logout is immediate and device-specific.
 
 ### 8.3 Session Revocation Behavior
 
 When a session is revoked (from Settings > Active Sessions):
 
 - The refresh token for that session is immediately invalidated on the server.
-- The next API call made using that session's access token will fail with a 401 (Unauthorized) error.
+- The dedicated `refresh_token` cookie on that device is invalidated on the server.
+- The next API call made using that session's primary auth cookie will fail with a 401 (Unauthorized) error.
 - The active WebSocket connection for that session is closed within 30 seconds.
 - The user on that device is redirected to `/signin`.
 
@@ -1191,18 +1201,18 @@ When a session is revoked (from Settings > Active Sessions):
 
 | Situation                      | What Happens                                 |
 | ------------------------------ | -------------------------------------------- |
-| User links a new auth provider | Old access token invalidated, new one issued |
-| User removes an auth provider  | Old access token invalidated, new one issued |
+| User links a new auth provider | Old session invalidated, new one issued      |
+| User removes an auth provider  | Old session invalidated, new one issued      |
 | User changes password          | All sessions on all devices invalidated      |
 | User resets password           | All sessions on all devices invalidated      |
 
 ### 8.5 Refresh Flow
 
 ```
-Access token expires after 4 hours
-→ Client automatically uses refresh token to get a new access token
+Primary auth session expires after 4 hours
+→ Client automatically uses the refresh cookie to obtain a new primary auth session
 → Server validates the refresh token
-→ New access token issued (lasts 4 more hours)
+→ New primary auth session issued (lasts 4 more hours)
 → User never sees a login prompt
 
 Refresh token expires after 15 days
@@ -1678,7 +1688,7 @@ Phase 1 — Core meeting infrastructure (ship: basic video meetings)
 ├── MongoDB setup + migrate-mongo configured
 ├── Redis + Celery configured
 ├── LiveKit Cloud account + token generation (server-side only)
-├── Auth — email/password + Google OAuth + JWT (HttpOnly cookies)
+├── Auth — email/password + Google OAuth + HttpOnly cookies
 ├── Guest join flow + display name deduplication
 ├── Pre-meeting lobby (device controls, auth + guest versions)
 ├── Max participants enforcement (50 per meeting)
@@ -1747,3 +1757,4 @@ Phase 6 — Platform features (ship: full platform)
 _Status: Current_
 _Last Updated: April 30, 2026_
 _Ready for build._
+

@@ -1,4 +1,4 @@
-# Universal Templates
+﻿# Universal Templates
 
 This folder is the **single source of truth** for all project-agnostic templates. Every template here works with any project, framework, or team — no hardcoded references.
 
@@ -70,3 +70,4 @@ When you update a template here:
 - ✅ = positive pattern (do this instead)
 - 📐 Schema = reference to database schema section
 - 📐 Mockup = reference to mockup image file
+

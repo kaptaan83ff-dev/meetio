@@ -1,4 +1,4 @@
-# Prompt Template: MVP Definition & Roadmap
+﻿# Prompt Template: MVP Definition & Roadmap
 
 ## Role
 
@@ -16,10 +16,10 @@ OUTPUT_PATH: {e.g., "docs/mvp/mvp-roadmap.md"}
 ## Reference Documents (Optional)
 
 ```
-PRD_REF: {docs/requirements/meetio-PRD.md}
-TRD_REF: {docs/requirements/meetio-TRD.md}
-SRS_REF: {docs/requirements/meetio-SRS.md}
-DB_shema: {docs/requirements/meetio-database-schema.md}
+PRD_REF: {docs/requirements/meetio-prd.md}
+TRD_REF: {docs/requirements/meetio-trd.md}
+SRS_REF: {docs/requirements/meetio-srs.md}
+DB_schema: {docs/requirements/meetio-db-schema.md}
 API_spec: {docs/requirements/meetio-api-spec.md}
 ```
 
@@ -114,3 +114,4 @@ Organize features into exactly 3 tiers:
 - Keep everything simple and clear
 - Ensure this file can be reused and updated regularly
 - Do NOT invent features unsupported by reference docs
+

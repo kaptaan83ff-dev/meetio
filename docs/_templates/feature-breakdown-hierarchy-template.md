@@ -1,4 +1,4 @@
-# Prompt Template: Feature Breakdown Hierarchy
+﻿# Prompt Template: Feature Breakdown Hierarchy
 
 ## Role
 
@@ -18,10 +18,10 @@ OUTPUT_PATH: {e.g., "docs/mvp/feature-breakdown-hierarchy.md"}
 
 ```
 FEATURE_BREAKDOWN_REF: {docs/mvp/feature-breakdown-hierarchy.md}
-PRD_REF: {docs/requirements/meetio-PRD.md}
-TRD_REF: {docs/requirements/meetio-TRD.md}
-feature-breakdown-docs: {docs/requirements/meetio-feature-breakdown-docs.md}
-DB_shema: {docs/requirements/meetio-database-schema.md}
+PRD_REF: {docs/requirements/meetio-prd.md}
+TRD_REF: {docs/requirements/meetio-trd.md}
+feature-breakdown-docs: {docs/mvp/meetio-feature-breakdown-docs.md}
+DB_schema: {docs/requirements/meetio-db-schema.md}
 API_spec: {docs/requirements/meetio-api-spec.md}
 ```
 
@@ -176,3 +176,4 @@ Before outputting, run these checks:
 - Ensure every feature from the breakdown doc is captured
 - Do NOT merge or combine distinct tasks
 - Number features sequentially with no gaps
+

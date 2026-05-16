@@ -1,4 +1,4 @@
-# MeetIO Project Mandates
+﻿# MeetIO Project Mandates
 
 This file defines the foundational standards and workflows for the MeetIO project. Adhere to these guidelines for all development tasks.
 
@@ -25,6 +25,7 @@ MeetIO is a high-performance video conferencing web application for students and
   - Backend: `pyproject.toml` (standardized dependencies).
   - Frontend: `package.json`.
 - **API Standards:** Follow `docs/requirements/meetio-api-spec.md`. Use `HttpOnly` cookies for JWTs.
+- **API Conventions:** Follow `docs/requirements/conventions.md` for `/v1` routing, response envelope, and request IDs.
 - **Database:** MongoDB 7.x. Follow `docs/requirements/meetio-db-schema.md` for collections and indexes.
 
 ## ?? Workflows
@@ -39,3 +40,4 @@ MeetIO is a high-performance video conferencing web application for students and
 - **Secrets:** Never commit `.env` files. Reference `.env.example` for required variables.
 - **Scope:** Web only (v1). No mobile app development.
 - **Assets:** Use locally generated CSS/SVG placeholders or WebP re-encoded images for performance.
+

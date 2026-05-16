@@ -1,4 +1,4 @@
-# MeetIO — Database Schema
+﻿# MeetIO — Database Schema
 **Database:** MongoDB Atlas  
 **Migration tool:** migrate-mongo  
 **Reference convention:** All cross-collection references use UUID strings (`id: str`), never `ObjectId`.  
@@ -11,7 +11,7 @@
 | Collection | Description |
 |---|---|
 | `users` | Authenticated user accounts |
-| `sessions` | Active JWT refresh token sessions |
+| `sessions` | Active auth sessions tied to refresh-token rotation |
 | `meetings` | All meeting records (scheduled + completed) |
 | `participants` | Per-session participant records per meeting |
 | `guest_sessions` | Temporary guest data — purged 24h after meeting ends |
@@ -59,8 +59,8 @@
   # State
   "is_active": True,                 # bool — False = soft-deleted
   "is_superuser": False,   # bool — required by FastAPI Users, always False for regular users
-  "deletion_requested_at": None,     # datetime | None
-  "deletion_scheduled_at": None,     # datetime | None — requested_at + 30 days
+  "deletion_requested_at": None,     # str (ISO 8601) | None
+  "deletion_scheduled_at": None,     # str (ISO 8601) | None — requested_at + 30 days
 
   # Preferences (denormalized here for fast reads — no separate settings collection needed in v1)
   "timezone": "Asia/Kolkata",        # str — IANA tz string
@@ -93,8 +93,8 @@
 ## 2. `sessions`
 
 > This collection is required because MeetIO uses DatabaseStrategy (not JWTStrategy).
-> DatabaseStrategy stores tokens here and supports remote revocation via 
-> DELETE /settings/sessions/{id}. If you switch to JWTStrategy, this collection 
+> DatabaseStrategy stores refresh-token session records here and supports remote revocation via
+> `DELETE /v1/settings/sessions/{id}`. If you switch to JWTStrategy, this collection
 > is unused and remote revocation is impossible.
 
 One document per active refresh token. Enables session listing + revocation from Settings.
@@ -165,8 +165,8 @@ One document per active refresh token. Enables session listing + revocation from
   "recording_status": None,            # None | "processing" | "available" | "failed"
   "recording_r2_key": None,            # str | None — R2 object key
   "recording_url": None,               # str | None — presigned URL (regenerated on access, not stored)
-  "recording_started_at": None,        # datetime | None
-  "recording_ended_at": None,          # datetime | None
+  "recording_started_at": None,        # str (ISO 8601) | None
+  "recording_ended_at": None,          # str (ISO 8601) | None
 
   # Recap pipeline
   "recap_status": None,                # None | "processing" | "ready" | "failed"
@@ -221,17 +221,17 @@ One document per user per meeting session. A user who rejoins gets a new documen
   "is_guest": True,                    # bool
 
   # Guest conversion
-  "converted_at": None,                # datetime | None
+  "converted_at": None,                # str (ISO 8601) | None
   "converted_from_name": None,         # str | None — display_name before conversion
   "migrated_to_user_id": None,         # str | None — user_id after successful conversion
 
   # Timeline
   "joined_at": "2026-04-29T10:05:00Z",
-  "left_at": None,                     # datetime | None
+  "left_at": None,                     # str (ISO 8601) | None
 
   # Waiting room
   "knock_count": 0,                    # int — re-knock attempts
-  "last_knocked_at": None,             # datetime | None
+  "last_knocked_at": None,             # str (ISO 8601) | None
 }
 ```
 
@@ -270,7 +270,7 @@ Temporary. GDPR-purged 24 hours after meeting ends.
   "migration_completed_at": None,
   "migration_source": None,             # "during_meeting" | "end_of_meeting" | None
   "migration_attempts": 0,              # int — rate limit: max 5
-  "locked_until": None,                 # datetime | None — backoff on failed attempts
+  "locked_until": None,                 # str (ISO 8601) | None — backoff on failed attempts
 }
 ```
 
@@ -398,7 +398,7 @@ Directly from PRD §13.2 — reproduced here as the authoritative schema.
   "status": "pending",                 # "pending" | "in_progress" | "done" | "blocked"
 
   # Due date
-  "due_date": None,                    # datetime | None
+  "due_date": None,                    # str (ISO 8601) | None
   "due_date_source": "ai_suggested",   # "ai_suggested" | "host_set" | "not_set"
   "due_date_raw_phrase": "by Friday",  # str | None
   "due_date_confidence": "high",       # "high" | "low" | None
@@ -494,7 +494,7 @@ Directly from PRD §13.2 — reproduced here as the authoritative schema.
   "reply_to_id": None,                  # str | None — parent message _id
 
   # Delivery state (server tracks delivery, not read — read is client-side)
-  "delivered_at": None,                 # datetime | None
+  "delivered_at": None,                 # str (ISO 8601) | None
 
   "created_at": "2026-04-29T10:30:00Z",
 }
@@ -567,7 +567,7 @@ One document per user. Contains public key (shareable) and encrypted private key
   # Google Calendar sync
   "gcal_event_id": None,                # str | None — Google's event ID
   "gcal_calendar_id": None,             # str | None — "primary" or specific calendar
-  "gcal_synced_at": None,               # datetime | None
+  "gcal_synced_at": None,               # str (ISO 8601) | None
 
   # Conflict detection (precomputed on write)
   "has_conflict": False,
@@ -607,7 +607,7 @@ One document per user. Stores Google OAuth tokens for Calendar access + active p
   # Google push notification channel
   "channel_id": "uuid-...",            # str | None — UUID sent to Google
   "channel_resource_id": "...",        # str | None — Google's resource ID
-  "channel_expiry": "2026-05-06T10:00:00Z",  # datetime | None — max ~7 days
+  "channel_expiry": "2026-05-06T10:00:00Z",  # str (ISO 8601) | None — max ~7 days
   # Celery Beat renews channels expiring within 48 hours (daily check)
 
   "sync_enabled": True,
@@ -790,3 +790,4 @@ conversations
 
 _Schema version: 1_  
 _Last updated: April 30, 2026_
+

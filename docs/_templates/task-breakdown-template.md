@@ -1,4 +1,4 @@
-# Prompt Template: Granular Feature Task Breakdown
+﻿# Prompt Template: Granular Feature Task Breakdown
 
 ## Role
 
@@ -26,8 +26,8 @@ MOCKUP_DIR: {path to mockups folder, or omit if not applicable}
 
 ```
 FEATURE_HIERARCHY_REF: {docs/mvp/feature-breakdown-hierarchy.md}
-TECH_DOCS: {docs/requirements/meetio-TRD.md}
-DATABASE_SCHEMA_REF: {docs/requirements/meetio-database-schema.md}
+TECH_DOCS: {docs/requirements/meetio-trd.md}
+DATABASE_SCHEMA_REF: {docs/requirements/meetio-db-schema.md}
 API_SPEC: {docs/requirements/meetio-api-spec.md}
 MOCKUP_DIR: {docs/mockups}
 EXISTING_CODE_REF: {src}
@@ -102,7 +102,7 @@ Every subtask MUST include:
 ### RULE 8: Reference Links
 
 - For backend model/repository tasks, add a schema reference line before Status:
-  `- 📐 Schema: docs/requirements/database-schema.md#section`
+  `- 📐 Schema: docs/requirements/meetio-db-schema.md#section`
 - For frontend UI tasks with available mockups, add a mockup reference line before Status:
   `- 📐 Mockup: docs/mockups/filename.png`
 - Only add references where relevant — do NOT force on every task
@@ -241,7 +241,7 @@ Before outputting, run these checks:
 - [ ] Include field names, method signatures, or API paths
 - [ ] Specify error handling requirements
 - [ ] Mention annotations, patterns, or conventions
-- 📐 Schema: `docs/requirements/database-schema.md#section` (if model/repository task)
+- 📐 Schema: `docs/requirements/meetio-db-schema.md#section` (if model/repository task)
 - Status: [ ] TODO
 
 (repeat for ALL backend tasks in order: Model → DTOs → Repository → Service → APIs)
@@ -349,5 +349,6 @@ Before outputting, run these checks:
 ✅ "Show LoadingSpinner while fetch in progress, empty state if array.length === 0"
 ✅ "Handle NotAllowedError with message 'Permission denied. Enable camera in browser settings.'"
 ✅ "Call LiveKitService.createRoom(roomId) inside @Transactional block"
-✅ "📐 Schema: `docs/requirements/database-schema.md#2-meetings-collection`" (on model task)
+✅ "📐 Schema: `docs/requirements/meetio-db-schema.md#2-meetings`" (on model task)
 ✅ "📐 Mockup: `docs/mockups/dashboard_colored.png`" (on UI component task)
+

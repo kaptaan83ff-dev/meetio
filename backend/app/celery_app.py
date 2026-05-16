@@ -1,13 +1,25 @@
+from datetime import timedelta
+from importlib import import_module
+
 from celery import Celery
 from celery.schedules import crontab
-from datetime import timedelta
+
 from app.config import settings
+
+TASK_MODULES = (
+    "app.tasks.ai_pipeline",
+    "app.tasks.calendar",
+    "app.tasks.dlq",
+    "app.tasks.gdpr",
+    "app.tasks.notifications",
+)
 
 # Celery app initialization
 app = Celery(
     "meetio",
     broker=settings.REDIS_URL,
-    backend=settings.REDIS_URL
+    backend=settings.REDIS_URL,
+    include=TASK_MODULES,
 )
 
 # Configuration
@@ -18,7 +30,7 @@ app.conf.update(
     timezone="UTC",
     enable_utc=True,
     task_track_started=True,
-    task_time_limit=3600, # 1 hour max
+    task_time_limit=3600,  # 1 hour max
 )
 
 # Beat Schedule Definition
@@ -55,5 +67,5 @@ app.conf.beat_schedule = {
     },
 }
 
-# Auto-discover tasks from app.tasks package
-app.autodiscover_tasks(["app"])
+for task_module in TASK_MODULES:
+    import_module(task_module)

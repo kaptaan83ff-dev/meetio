@@ -2,12 +2,18 @@ module.exports = {
   async up(db, client) {
     // 1. users
     await db.collection("users").createIndex({ email: 1 }, { unique: true });
-    await db.collection("users").createIndex({ google_id: 1 }, { sparse: true, unique: true });
+    await db.collection("users").createIndex(
+      { google_id: 1 },
+      { unique: true, partialFilterExpression: { google_id: { $type: "string" } } }
+    );
     await db.collection("users").createIndex({ is_active: 1, deletion_scheduled_at: 1 });
 
     // 2. sessions
     await db.collection("sessions").createIndex({ user_id: 1, is_revoked: 1 });
-    await db.collection("sessions").createIndex({ refresh_token_hash: 1 }, { unique: true });
+    await db.collection("sessions").createIndex(
+      { refresh_token_hash: 1 },
+      { unique: true, partialFilterExpression: { refresh_token_hash: { $type: "string" } } }
+    );
     await db.collection("sessions").createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 }); // TTL index
 
     // 3. meetings

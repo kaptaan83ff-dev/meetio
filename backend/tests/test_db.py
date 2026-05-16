@@ -2,11 +2,18 @@ import pytest
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.config import settings
 
+
+def _is_local_mongo(uri: str) -> bool:
+    return uri.startswith("mongodb://localhost") or uri.startswith("mongodb://127.0.0.1")
+
+
 @pytest.mark.asyncio
 async def test_mongodb_connection():
     """
     Test that we can connect to MongoDB and ping the database.
     """
+    if not _is_local_mongo(settings.MONGODB_URI):
+        pytest.skip("MongoDB integration tests require local MongoDB (mongodb://localhost).")
     client = AsyncIOMotorClient(settings.MONGODB_URI)
     try:
         # The ping command is cheap and does not require auth
@@ -21,6 +28,8 @@ async def test_collections_exist():
     Test that all 16 collections exist in the database.
     Note: This requires migrations to have been run.
     """
+    if not _is_local_mongo(settings.MONGODB_URI):
+        pytest.skip("MongoDB integration tests require local MongoDB (mongodb://localhost).")
     client = AsyncIOMotorClient(settings.MONGODB_URI)
     db = client[settings.MONGODB_DB_NAME]
     try:
@@ -41,6 +50,8 @@ async def test_indexes_exist():
     """
     Test that indexes exist for the users collection.
     """
+    if not _is_local_mongo(settings.MONGODB_URI):
+        pytest.skip("MongoDB integration tests require local MongoDB (mongodb://localhost).")
     client = AsyncIOMotorClient(settings.MONGODB_URI)
     db = client[settings.MONGODB_DB_NAME]
     try:

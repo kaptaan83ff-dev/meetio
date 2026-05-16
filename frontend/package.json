@@ -14,6 +14,7 @@
   "dependencies": {
     "@livekit/components-react": "^2.0.0",
     "@sentry/react": "^7.110.0",
+    "date-fns": "^3.6.0",
     "idb": "^8.0.0",
     "livekit-client": "^2.0.0",
     "lucide-react": "^0.363.0",
@@ -36,6 +37,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.6",
+    "jsdom": "^29.1.1",
     "msw": "^2.2.3",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",

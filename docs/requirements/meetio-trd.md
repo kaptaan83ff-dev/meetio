@@ -1,4 +1,4 @@
-# MeetIO — Technical Requirements Document
+﻿# MeetIO — Technical Requirements Document
 
 > **Version:** 1.0 (patched)
 > **Status:** Current
@@ -72,7 +72,7 @@ Web application only. No mobile app. All features listed in PRD Sections 1–19.
 | Post-meeting STT     | Deepgram                                                                       | Post-processing API            |
 | AI Pipeline          | OpenAI GPT-4o **or** Anthropic Claude (configurable via `AI_PROVIDER` env var) | Latest                         |
 | Recording Storage    | Cloudflare R2                                                                  | Free tier (10 GB/month)        |
-| Email                | Resend                                                                         | Free tier (3,000 emails/month) |
+| Email                | Resend + Mailpit (dev-only)                                                    | Free tier (3,000 emails/month) |
 | Schema Migrations    | migrate-mongo                                                                  | Latest                         |
 | E2E Encryption       | tweetnacl (browser), PyNaCl (server)                                           | Latest                         |
 
@@ -636,7 +636,7 @@ JWT_REFRESH_TOKEN_EXPIRE_DAYS=15
 # Google OAuth
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
-GOOGLE_REDIRECT_URI=https://api.meetio.app/auth/google/callback
+GOOGLE_REDIRECT_URI=https://api.meetio.app/v1/auth/google/callback
 
 # Google Calendar
 GOOGLE_CALENDAR_WEBHOOK_URL=https://api.meetio.app/webhooks/google-calendar
@@ -668,6 +668,9 @@ R2_PUBLIC_URL=https://recordings.meetio.app
 # Email
 RESEND_API_KEY=...
 EMAIL_FROM=noreply@meetio.app
+EMAIL_TRANSPORT=auto   # auto = console in development, Resend otherwise
+MAILPIT_HOST=localhost
+MAILPIT_PORT=1025
 
 ```
 
@@ -731,7 +734,7 @@ Development:  http://localhost:8000/v1/
 All protected endpoints use HttpOnly cookies:
 
 ```http
-Cookie: access_token=<jwt>; refresh_token=<jwt>
+Cookie: fastapiusersauth=<session>; refresh_token=<opaque>
 ```
 
 No `Authorization: Bearer` header. Cookies only — prevents XSS token theft.
@@ -835,16 +838,15 @@ app.add_middleware(
 
 | Endpoint                | Method | Auth           | Description                 |
 | ----------------------- | ------ | -------------- | --------------------------- |
-| `/auth/signup`          | POST   | None           | Email/password registration |
-| `/auth/signin`          | POST   | None           | Email/password login        |
-| `/auth/signout`         | POST   | Required       | Logout + clear cookies      |
-| `/auth/refresh`         | POST   | Refresh cookie | Rotate access token         |
-| `/auth/google`          | GET    | None           | Initiate Google OAuth       |
-| `/auth/google/callback` | GET    | None           | Google OAuth callback       |
-| `/auth/otp/send`        | POST   | None           | Send OTP to email           |
-| `/auth/otp/verify`      | POST   | None           | Verify OTP                  |
-| `/auth/password/forgot` | POST   | None           | Initiate password reset     |
-| `/auth/password/reset`  | POST   | None           | Complete password reset     |
+| `/v1/auth/register`     | POST   | None           | Email/password registration |
+| `/v1/auth/login`        | POST   | None           | Email/password login        |
+| `/v1/auth/logout`       | POST   | Required       | Logout + clear cookies      |
+| `/v1/auth/refresh`      | POST   | Refresh cookie | Rotate primary auth session  |
+| `/v1/auth/google`       | GET    | None           | Initiate Google OAuth       |
+| `/v1/auth/google/callback` | GET | None           | Google OAuth callback       |
+| `/v1/auth/2fa/verify`   | POST   | None           | Verify OTP                  |
+| `/v1/auth/forgot-password` | POST | None          | Initiate password reset     |
+| `/v1/auth/reset-password`  | POST | None          | Complete password reset     |
 
 #### Meetings (`/v1/meetings/`)
 
@@ -880,7 +882,7 @@ app.add_middleware(
 >
 > Auth user join sequence:
 > 1. Auth user clicks "Join Meeting" on lobby
-> 2. POST /meetings/{id}/token  (access_token cookie sent automatically)
+> 2. POST /meetings/{id}/token  (primary auth cookie sent automatically)
 >    ← returns { livekit_token }
 > 3. Browser connects to LiveKit using livekit_token
 > ```
@@ -935,22 +937,22 @@ app.add_middleware(
 
 | Endpoint                               | Method        | Auth     | Description                    |
 | -------------------------------------- | ------------- | -------- | ------------------------------ |
-| `/settings`                            | GET / PUT     | Required | Get/update settings            |
-| `/settings/export`                     | POST          | Required | Request GDPR data export       |
-| `/settings/delete-account`             | POST          | Required | Request account deletion       |
-| `/settings/password`                   | PUT           | Required | Change password                |
-| `/settings/2fa`                        | POST          | Required | Enable/disable 2FA             |
-| `/settings/sessions`                   | GET           | Required | Active sessions list           |
-| `/settings/sessions/{id}`              | DELETE        | Required | Revoke session                 |
-| `/settings/login-history`              | GET           | Required | Login history (last 90 days)   |
-| `/settings/linked-accounts`            | GET           | Required | Linked OAuth providers         |
-| `/settings/linked-accounts/{provider}` | DELETE        | Required | Unlink provider                |
-| `/profile`                             | GET / PUT     | Required | Get/update profile             |
-| `/profile/avatar`                      | POST / DELETE | Required | Upload/remove avatar           |
-| `/profile/avatar/default`              | POST          | Required | Set default avatar             |
-| `/notifications`                       | GET           | Required | List notifications (paginated) |
-| `/notifications/{id}/read`             | PATCH         | Required | Mark notification as read      |
-| `/notifications/read-all`              | POST          | Required | Mark all as read               |
+| `/v1/settings`                         | GET / PUT     | Required | Get/update settings            |
+| `/v1/settings/export`                  | POST          | Required | Request GDPR data export       |
+| `/v1/settings/delete-account`          | POST          | Required | Request account deletion       |
+| `/v1/settings/password`                | PUT           | Required | Change password                |
+| `/v1/settings/2fa`                     | POST          | Required | Enable/disable 2FA             |
+| `/v1/settings/sessions`                | GET           | Required | Active sessions list           |
+| `/v1/settings/sessions/{id}`           | DELETE        | Required | Revoke session                 |
+| `/v1/settings/login-history`           | GET           | Required | Login history (last 90 days)   |
+| `/v1/settings/linked-accounts`         | GET           | Required | Linked OAuth providers         |
+| `/v1/settings/linked-accounts/{provider}` | DELETE     | Required | Unlink provider                |
+| `/v1/profile`                          | GET / PUT     | Required | Get/update profile             |
+| `/v1/profile/avatar`                   | POST / DELETE | Required | Upload/remove avatar           |
+| `/v1/profile/avatar/default`           | POST          | Required | Set default avatar             |
+| `/v1/notifications`                    | GET           | Required | List notifications (paginated) |
+| `/v1/notifications/{id}/read`          | PATCH         | Required | Mark notification as read      |
+| `/v1/notifications/read-all`           | POST          | Required | Mark all as read               |
 
 #### Infrastructure
 
@@ -1028,10 +1030,14 @@ or DatabaseStrategy. Do not implement create_access_token / decode_token manuall
 Use PyJWT>=2.8.0 only for standalone internal token needs outside of auth flows.
 Do not use python-jose — deprecated, has unpatched CVEs.
 
+Cookie convention:
+- `fastapiusersauth` is the primary auth cookie.
+- `refresh_token` is the dedicated refresh cookie used by the custom refresh route.
+
 Strategy choice (pick one and apply consistently across all documents):
 - JWTStrategy: stateless, no session document, no server-side revocation possible.
 - DatabaseStrategy: stateful, requires sessions collection, supports
-  DELETE /settings/sessions/{id} remote revocation.
+  DELETE /v1/settings/sessions/{id} remote revocation.
 
 MeetIO uses DatabaseStrategy to support remote session revocation (Feature 3).
 ```
@@ -1041,13 +1047,13 @@ MeetIO uses DatabaseStrategy to support remote session revocation (Feature 3).
 | Requirement      | Implementation                   |
 | ---------------- | -------------------------------- |
 | Password hashing | argon2 (via passlib)             |
-| JWT signing      | HS256 with 64-byte random secret |
-| JWT library      | PyJWT ≥ 2.8.0                    |
+| Session signing   | HS256 with 64-byte random secret |
+| Token library     | PyJWT ≥ 2.8.0                    |
 
 | Token storage | HttpOnly, Secure, SameSite=Lax cookies — configured via
 FastAPI Users CookieTransport, not set manually |
 
-| Access token TTL | 4 hours |
+| Primary auth session TTL | 4 hours |
 | Refresh token TTL | 15 days |
 | Refresh token storage | Hashed (argon2) in `sessions` collection |
 | Verification Link Expiry | Usually 24-48 hours (managed by FastAPI Users) |
@@ -1058,7 +1064,7 @@ FastAPI Users CookieTransport, not set manually |
 All incoming request bodies are validated by Pydantic models before business logic executes. Custom validators required for:
 
 - Email format (RFC 5322)
-- Password strength: minimum 8 characters, at least one uppercase, one number
+- Password strength: minimum 8 characters, at least one uppercase, one number, one special character
 - URL format (profile website field)
 - Timezone string (validate against IANA database)
 - File upload MIME type (avatar: JPG/PNG/WEBP only, max 5 MB)
@@ -1377,7 +1383,7 @@ from websocket.manager import manager
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    user = await authenticate_websocket(websocket)  # verifies access_token cookie
+    user = await authenticate_websocket(websocket)  # verifies primary auth cookie
     if not user:
         await websocket.close(code=4001)
         return
@@ -1442,7 +1448,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 ### 10.5 Authentication
 
-WebSocket connections are authenticated via the access token cookie on the initial HTTP upgrade request. Unauthenticated connections are rejected immediately with close code `4001`.
+WebSocket connections are authenticated via the primary auth cookie on the initial HTTP upgrade request. Unauthenticated connections are rejected immediately with close code `4001`.
 
 ### 10.6 Keepalive
 
@@ -1790,6 +1796,22 @@ def send_email(to: str, subject: str, html: str):
         "html": html,
     })
 ```
+
+#### 12.5.1 Local auth email capture
+
+For development, MeetIO can run without a real email inbox:
+
+- `EMAIL_TRANSPORT=auto` uses console capture when `APP_ENV=development`
+- `EMAIL_TRANSPORT=mailpit` sends to a local Mailpit SMTP server on `MAILPIT_HOST:MAILPIT_PORT`
+- verification and reset email links are written to the backend or Celery logs, or visible in Mailpit's web UI
+- this lets you validate signup, email verification, and password reset locally without Resend delivery
+
+Auth semantics are intentionally split:
+
+- **Signup / password reset:** email token links
+- **2FA:** TOTP code from an authenticator app
+- **Console email transport:** dev-only verification aid, not a production sender
+- **Mailpit SMTP:** dev-only mail capture server, useful when you want a browser UI instead of raw logs
 
 ---
 
@@ -2560,3 +2582,4 @@ _Ready for build._
 
 Appendix C:
 One additional note for your setup: the venv itself is never committed or referenced in these docs — just create it locally with python -m venv .venv && source .venv/bin/activate && pip install -e ".[dev]" and add .venv/ to .gitignore. No doc change needed for that.
+

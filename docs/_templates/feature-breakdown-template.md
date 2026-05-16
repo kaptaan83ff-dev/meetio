@@ -1,4 +1,4 @@
-# Prompt Template: Feature Breakdown Document
+﻿# Prompt Template: Feature Breakdown Document
 
 ## Role
 
@@ -17,11 +17,11 @@ TECH_STACK: {AI will extract from TECH_DOCS or ask user to confirm}
 ## Reference Documents (Optional)
 
 ```
-PRD_REF: {docs/requirements/meetio-PRD.md}
-TRD_REF: {docs/requirements/meetio-TRD.md}
-SRS_REF: {docs/requirements/meetio-SRS.md}
+PRD_REF: {docs/requirements/meetio-prd.md}
+TRD_REF: {docs/requirements/meetio-trd.md}
+SRS_REF: {docs/requirements/meetio-srs.md}
 MVP_ROADMAP_REF: {docs/mvp/mvp-roadmap.md}
-DB_shema: {docs/requirements/meetio-database-schema.md}
+DB_schema: {docs/requirements/meetio-db-schema.md}
 API_spec: {docs/requirements/meetio-api-spec.md}
 ```
 
@@ -269,3 +269,4 @@ Before outputting, run these checks:
 - Ensure every feature from reference docs is captured
 - Do NOT merge or combine distinct features
 - Number features sequentially with no gaps
+
